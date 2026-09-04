@@ -12,8 +12,9 @@ Understand the full vertical slice:
 - `MVP_SPEC.md`: product source of truth.
 - `BUILD_PLAN.md`: implementation sequence.
 - `AGENTS.md`: repository rules.
+- `DESIGN.md`: visual language and interaction rules for the product UI.
 
-Read those documents before changing code. Use Explorer for routine reconnaissance, then reason and give Implementer precise, bounded tasks. Review its output and request targeted fixes or validation as needed.
+Read those documents before changing code. Before planning any frontend task, read `DESIGN.md` and use it as the visual source of truth. Tell Implementer to follow `DESIGN.md` and not invent UI patterns outside it. Use Explorer for routine reconnaissance, then reason and give Implementer precise, bounded tasks. Review its output and request targeted fixes or validation as needed.
 
 Non-negotiable behavior:
 - PostgreSQL is the source of truth; never use frontend mocks for persisted results.
