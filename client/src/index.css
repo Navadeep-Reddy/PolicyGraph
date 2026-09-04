@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* PolicyGraph visual language: DESIGN.md is the source of truth.
+   Warm canvas, white restrained panels, forest brand, amber change accent. */
+
+body {
+  margin: 0;
+  background-color: #f7f7f5;
+  color: #292524;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+h1,
+h2,
+h3,
+nav,
+button {
+  font-family: Geist, Inter, system-ui, sans-serif;
+}
+
+/* Visible keyboard focus everywhere; never rely on color alone. */
+a:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  outline: 2px solid #174c3c;
+  outline-offset: 2px;
+}
+
+/* Keep React Flow controls compact and neutral. */
+.xyflow__controls-button {
+  border-bottom: 1px solid #e6e7e4;
+}

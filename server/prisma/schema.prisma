@@ -1,0 +1,138 @@
+// PolicyGraph one-day MVP schema.
+//
+// Only the seven models required by MVP_SPEC.md section 5 exist here.
+// Dependency edges are polymorphic: a source may be a CLAUSE or an
+// ARTIFACT id, while a target is always an ARTIFACT id, so edges carry
+// node ids plus node-type enums instead of foreign keys.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PolicyVersionStatus {
+  ACTIVE
+  DRAFT
+}
+
+enum ArtifactType {
+  FORM
+  PROCEDURE
+  SOFTWARE_RULE
+}
+
+enum DependencyNodeType {
+  CLAUSE
+  ARTIFACT
+}
+
+enum EdgeRelationship {
+  IMPLEMENTED_BY
+  REFERENCED_BY
+  CONSUMED_BY
+}
+
+enum EdgeStatus {
+  APPROVED
+  PROPOSED
+  RETIRED
+}
+
+enum ReviewStatus {
+  PROPOSED
+  CONFIRMED
+  DISMISSED
+  RESOLVED
+}
+
+model Policy {
+  id             String          @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  versions       PolicyVersion[]
+}
+
+model PolicyVersion {
+  id            String              @id @default(cuid())
+  policyId      String
+  policy        Policy              @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  status        PolicyVersionStatus
+  effectiveDate DateTime?
+  createdAt     DateTime            @default(now())
+  clauses       Clause[]
+  impactRuns    ImpactRun[]
+
+  @@unique([policyId, versionNumber])
+}
+
+model Clause {
+  id              String        @id @default(cuid())
+  policyVersionId String
+  policyVersion   PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+  stableKey       String
+  text            String
+  position        Int
+  textHash        String
+
+  @@unique([policyVersionId, stableKey])
+}
+
+model Artifact {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  type           ArtifactType
+  description    String?
+  // Operational criticality, 1 (low) to 5 (critical).
+  criticality    Int
+  impactResults  ImpactResult[]
+}
+
+model DependencyEdge {
+  id               String             @id @default(cuid())
+  organizationId   String
+  sourceNodeId     String
+  sourceNodeType   DependencyNodeType
+  targetNodeId     String
+  targetNodeType   DependencyNodeType
+  relationshipType EdgeRelationship
+  status           EdgeStatus
+  rationale        String?
+  validFrom        DateTime?
+  validTo          DateTime?
+
+  @@index([sourceNodeId, status])
+  @@index([targetNodeId])
+}
+
+model ImpactRun {
+  id              String         @id @default(cuid())
+  policyVersionId String
+  policyVersion   PolicyVersion  @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  results         ImpactResult[]
+}
+
+model ImpactResult {
+  id            String       @id @default(cuid())
+  impactRunId   String
+  impactRun     ImpactRun    @relation(fields: [impactRunId], references: [id], onDelete: Cascade)
+  artifactId    String
+  artifact      Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  distance      Int
+  // Ordered nodes and edges for one complete dependency path (MVP: stored inline).
+  pathJson      Json
+  reason        String
+  reviewStatus  ReviewStatus @default(PROPOSED)
+  reviewComment String?
+
+  @@unique([impactRunId, artifactId])
+}

@@ -80,43 +80,67 @@ The backend validation rule must therefore appear as an **indirect impact** with
 
 Authentication is part of the full project, but it is not allowed to block today's core demo.
 
-## Suggested repository
+## Local setup
 
-```text
-policygraph/
-├── AGENTS.md
-├── README.md
-├── MVP_SPEC.md
-├── BUILD_PLAN.md
-├── client/
-└── server/
-```
+Prerequisites: Node.js + npm, Docker Compose.
 
-## Bootstrap
+### 1. PostgreSQL
 
-### Client
+From the repository root:
 
 ```bash
-npm create vite@latest client -- --template react-ts
-cd client
-npm install
-npm install @xyflow/react
-npm install tailwindcss @tailwindcss-vite
+docker compose up -d
 ```
 
-Use the current Tailwind Vite integration when configuring the project.
-
-### Server
+This starts `policygraph-postgres` using the credentials in `docker-compose.yml`.
+The container always listens on `5432` internally; the **host** port defaults to `5432`:
 
 ```bash
-npm install -g @nestjs/cli
-nest new server --strict
+POSTGRES_HOST_PORT=5433 docker compose up -d
+```
+
+Use the override only when something on your machine already occupies `5432`.
+Whatever host port you choose must match `DATABASE_URL` in `server/.env`
+(e.g. host port `5433` → `postgresql://policygraph:policygraph@localhost:5433/policygraph`).
+
+### 2. Server (API on `http://localhost:3000`)
+
+```bash
 cd server
-npm install prisma @prisma/client
-npx prisma init
+cp .env.example .env   # then align DATABASE_URL with your host port above
+npm install
+npm run db:migrate
+npm run db:seed
+npm run start:dev
 ```
 
-Configure `DATABASE_URL` for PostgreSQL before creating the first migration.
+`npm run db:seed` loads the canonical Travel Reimbursement demo data and is idempotent.
+
+Reset the database (wipes data and re-applies migrations, then re-seed):
+
+```bash
+npm run db:reset
+npm run db:seed
+```
+
+### 3. Client (app on `http://localhost:5173`)
+
+```bash
+cd client
+cp .env.example .env   # VITE_API_URL="http://localhost:3000"
+npm install
+npm run dev
+```
+
+### Canonical browser demo path
+
+1. Open `http://localhost:5173`.
+2. Open **Travel Reimbursement Policy**.
+3. Compare active (`30 days`) vs draft (`15 days`) and confirm the clause reads `MODIFIED`.
+4. Click **Run impact analysis**.
+5. Confirm the affected artifacts (Travel Claim Form, Finance Reimbursement Procedure,
+   Backend Deadline Validation Rule) each show a complete dependency path.
+6. Mark a result resolved, refresh, and confirm it stays resolved.
 
 ## Do not overbuild
 
