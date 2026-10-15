@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPolicy } from "../api/client.ts";
+import { rememberAiProposedClauses } from "../api/clauseProvenance.ts";
 import AppShell from "../components/AppShell.tsx";
 import { ErrorState } from "../components/DataStates.tsx";
 
@@ -22,6 +23,7 @@ export default function NewPolicyPage() {
         ...(description.trim() ? { description: description.trim() } : {}),
         text: text.trim(),
       });
+      rememberAiProposedClauses(result.policy.id, result.draft.clauses.map(clause => clause.id));
       navigate(`/policies/${result.policy.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Policy creation failed. Please try again.");

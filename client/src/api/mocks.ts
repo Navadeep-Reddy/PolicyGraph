@@ -78,6 +78,19 @@ export function createMockRequest(snapshots: MockSnapshots = {}) {
       if (!detail) return missing();
       if (!action && method === "GET") return response(detail);
       if (action === "dependencies" && method === "GET") return response(dependencies.filter(edge => edge.policyId === resourceId && (!url.searchParams.has("status") || edge.status === url.searchParams.get("status"))));
+      if (action === "dependencies" && method === "POST") {
+        const sourceType = input.sourceType;
+        const target = items.find(item => item.id === input.targetArtifactId);
+        const sourceItem = items.find(item => item.id === input.sourceArtifactId);
+        const version = versions.find(row => row.policyId === resourceId && row.status === "DRAFT") ?? versions.find(row => row.policyId === resourceId && row.status === "ACTIVE");
+        const sourceClause = version?.clauses.find(clause => clause.stableKey === input.sourceClauseKey);
+        if ((sourceType !== "CLAUSE" && sourceType !== "ARTIFACT") || !target || (sourceType === "CLAUSE" ? !sourceClause : !sourceItem) || !["GOVERNS", "UPDATES", "APPEARS_IN"].includes(String(input.relationshipType))) return failure("VALIDATION_ERROR", "Provide valid dependency endpoints and relationship type.", 400);
+        const duplicate = dependencies.some(edge => edge.policyId === resourceId && edge.sourceType === sourceType && edge.sourceClauseKey === (sourceType === "CLAUSE" ? input.sourceClauseKey : null) && edge.sourceArtifactId === (sourceType === "ARTIFACT" ? input.sourceArtifactId : null) && edge.targetArtifactId === target.id && edge.relationshipType === input.relationshipType);
+        if (duplicate) return failure("CONFLICT", "This dependency already exists.", 409);
+        const edge: Dependency = { id: crypto.randomUUID(), policyId: resourceId, sourceType, sourceClauseKey: sourceType === "CLAUSE" ? String(input.sourceClauseKey) : null, sourceArtifactId: sourceType === "ARTIFACT" ? String(input.sourceArtifactId) : null, sourceLabel: sourceType === "CLAUSE" ? sourceClause!.title : sourceItem!.name, targetArtifactId: target.id, targetLabel: target.name, relationshipType: input.relationshipType as Dependency["relationshipType"], status: "APPROVED", origin: "MANUAL", rationale: typeof input.rationale === "string" ? input.rationale : null };
+        dependencies.push(edge);
+        return response(edge, 201);
+      }
       if (action === "graph" && method === "GET") {
         const versionId = url.searchParams.get("versionId");
         const version = versions.find(version => version.policyId === resourceId && (versionId ? version.id === versionId : version.status === "DRAFT"))
@@ -96,18 +109,44 @@ export function createMockRequest(snapshots: MockSnapshots = {}) {
         });
       }
       if (action === "dependency-suggestions" && method === "POST") return failure("AI_FAILED", "Dependency suggestion requires the real API. Development mocks do not generate AI output.", 502);
-      if (action === "revisions" && method === "POST") return failure("CONFLICT", "Revision creation requires the real API in this development transport.", 409);
+      if (action === "revisions" && method === "POST") {
+        if (typeof input.text === "string" && input.text.trim()) return failure("AI_FAILED", "Clause extraction requires the real API. Development mocks do not generate AI output.", 502);
+        if (detail.versions.some(row => row.status === "DRAFT")) return failure("CONFLICT", "A draft already exists.", 409);
+        const active = detail.versions.find(row => row.status === "ACTIVE");
+        const activeVersion = active ? versions.find(row => row.id === active.id) : undefined;
+        if (!active || !activeVersion) return failure("CONFLICT", "An active version is required to create a revision.", 409);
+        const revision: VersionDetail = { id: crypto.randomUUID(), policyId: resourceId, versionNumber: Math.max(...detail.versions.map(row => row.versionNumber)) + 1, status: "DRAFT", publishedAt: null, createdAt: new Date().toISOString(), clauses: activeVersion.clauses.map(clause => ({ ...clause, id: crypto.randomUUID(), versionId: "" })) };
+        revision.clauses.forEach(clause => { clause.versionId = revision.id; });
+        versions.push(revision); detail.versions.unshift(revision);
+        return response(revision, 201);
+      }
     }
 
     if (resource === "versions") {
       const version = versions.find(version => version.id === resourceId);
       if (!version) return missing();
       if (!action && method === "GET") return response(version);
+      if (action === "publish" && method === "POST") {
+        if (version.status !== "DRAFT" || version.clauses.length === 0) return failure("CONFLICT", "Only a non-empty draft can be published.", 409);
+        for (const previous of versions) if (previous.policyId === version.policyId && previous.status === "ACTIVE") previous.status = "ARCHIVED";
+        version.status = "ACTIVE";
+        return response(version);
+      }
       if (action === "changes" && method === "GET") {
         const against = url.searchParams.get("against") ?? versions.find(other => other.policyId === version.policyId && other.versionNumber === version.versionNumber - 1)?.id;
         if (!against) return failure("NO_BASE_VERSION", "No earlier version to compare against.", 409);
         const snapshot = data.comparisons?.[`${version.id}:${against}`];
-        return snapshot ? response(snapshot) : failure("CONFLICT", "No comparison snapshot supplied. Change detection requires the real API.", 409);
+        if (snapshot) return response(snapshot);
+        const base = versions.find(other => other.id === against);
+        if (!base) return missing();
+        const oldClauses = new Map(base.clauses.map(clause => [clause.stableKey, clause]));
+        const newClauses = new Map(version.clauses.map(clause => [clause.stableKey, clause]));
+        const keys = new Set([...oldClauses.keys(), ...newClauses.keys()]);
+        return response([...keys].map(stableKey => {
+          const before = oldClauses.get(stableKey) ?? null;
+          const after = newClauses.get(stableKey) ?? null;
+          return { stableKey, changeType: !before ? "ADDED" : !after ? "REMOVED" : before.text !== after.text ? "MODIFIED" : "UNCHANGED", before, after };
+        }));
       }
       if (action === "impact-runs" && method === "GET") return response(reports.filter(report => report.versionId === resourceId).map(report => ({ id: report.id, createdAt: report.createdAt, resultCount: report.results.length })).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       if (action === "impact-runs" && method === "POST") return failure("CONFLICT", "Impact calculation requires the real API. Development mocks never calculate impact.", 409);
@@ -122,6 +161,33 @@ export function createMockRequest(snapshots: MockSnapshots = {}) {
         }
         for (const key of ["title", "text", "category"] as const) if (typeof input[key] === "string") clause[key] = input[key];
         return response(clause);
+      }
+      if (action === "clauses" && !childId && method === "POST") {
+        if (version.status !== "DRAFT") return failure("CONFLICT", "Only draft clauses are editable.", 409);
+        if (["stableKey", "title", "text", "category"].some(key => typeof input[key] !== "string" || !(input[key] as string).trim())) return failure("VALIDATION_ERROR", "Provide a stable key, title, text, and category.", 400);
+        if (version.clauses.some(clause => clause.stableKey === input.stableKey)) return failure("CONFLICT", "Clause key already exists in this version.", 409);
+        const clause = { id: crypto.randomUUID(), versionId: version.id, stableKey: String(input.stableKey), title: String(input.title), text: String(input.text), category: String(input.category), position: version.clauses.length };
+        version.clauses.push(clause);
+        return response(clause, 201);
+      }
+      if (action === "clauses" && childId && method === "DELETE") {
+        if (version.status !== "DRAFT") return failure("CONFLICT", "Only draft clauses are editable.", 409);
+        const index = version.clauses.findIndex(clause => clause.id === childId);
+        if (index < 0) return missing();
+        version.clauses.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
+    }
+
+    if (resource === "dependencies") {
+      const index = dependencies.findIndex(edge => edge.id === resourceId);
+      if (index < 0) return missing();
+      if (method === "DELETE") { dependencies.splice(index, 1); return new Response(null, { status: 204 }); }
+      if (method === "PATCH") {
+        if (input.status !== undefined && !["PROPOSED", "APPROVED", "REJECTED"].includes(String(input.status))) return failure("VALIDATION_ERROR", "Provide a valid dependency status.", 400);
+        if (input.relationshipType !== undefined && !["GOVERNS", "UPDATES", "APPEARS_IN"].includes(String(input.relationshipType))) return failure("VALIDATION_ERROR", "Provide a valid relationship type.", 400);
+        dependencies[index] = { ...dependencies[index], ...input };
+        return response(dependencies[index]);
       }
     }
 

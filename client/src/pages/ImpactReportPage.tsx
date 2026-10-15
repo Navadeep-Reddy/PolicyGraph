@@ -135,6 +135,7 @@ export default function ImpactReportPage() {
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="type-page-title text-ink">Impact analysis</h1>
+            <p className="type-body-md mt-1 text-text-secondary">{report.policyTitle}</p>
             <div className="type-body-sm mt-1 flex flex-wrap items-center gap-2 text-text-muted">
               {modifiedChanges.slice(0, 3).map((change) => (
                 <span key={change.stableKey} className="inline-flex items-center gap-1.5">
@@ -150,6 +151,7 @@ export default function ImpactReportPage() {
                   : `${results.length} affected artifacts`}
               </span>
             </div>
+            {report.affectedDepartments.length > 0 && <p className="type-body-sm mt-2 text-text-muted">Affected departments: {report.affectedDepartments.join(" · ")}</p>}
           </div>
         </div>
 

@@ -208,6 +208,7 @@ export default function DependencyGraph({
   }
 
   return (
+    <>
     <div
       className={`graph-canvas ${heightClassName} overflow-hidden rounded-card border border-border-default`}
       role="img"
@@ -227,5 +228,13 @@ export default function DependencyGraph({
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
+    <div className="mt-3 overflow-x-auto rounded-card border border-border-default bg-glass-90">
+      <table className="w-full min-w-[520px] border-collapse text-left">
+        <caption className="sr-only">Text equivalent of dependency graph relationships</caption>
+        <thead><tr className="border-b border-border-strong"><th className="type-label-md px-3 py-2 text-text-muted">Source</th><th className="type-label-md px-3 py-2 text-text-muted">Relationship</th><th className="type-label-md px-3 py-2 text-text-muted">Target</th><th className="type-label-md px-3 py-2 text-text-muted">Status</th></tr></thead>
+        <tbody>{edges.length ? edges.map(edge => <tr key={edge.id} className="border-b border-border-faint last:border-0"><td className="type-body-sm px-3 py-2 text-ink">{nodes.find(node => node.id === edge.source)?.label ?? edge.source}</td><td className="type-body-sm px-3 py-2 text-text-secondary">{humanRelationshipLabel(edge.relationshipType)}</td><td className="type-body-sm px-3 py-2 text-ink">{nodes.find(node => node.id === edge.target)?.label ?? edge.target}</td><td className="type-label-sm px-3 py-2 text-text-muted">{edge.status}</td></tr>) : <tr><td colSpan={4} className="type-body-sm px-3 py-3 text-text-muted">No dependency relationships.</td></tr>}</tbody>
+      </table>
+    </div>
+    </>
   );
 }

@@ -13,6 +13,7 @@ import {
   publishVersion,
   updateClause,
 } from "../api/client.ts";
+import { clearAiProposedClauses, getAiProposedClauseIds } from "../api/clauseProvenance.ts";
 import AppShell from "../components/AppShell.tsx";
 import DependencyGraph from "../components/DependencyGraph.tsx";
 import { ChangeBadge } from "../components/badges.tsx";
@@ -62,7 +63,7 @@ export default function PolicyPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [draftTexts, setDraftTexts] = useState<Record<string, string>>({});
+  const [draftValues, setDraftValues] = useState<Record<string, { title: string; text: string; category: string }>>({});
   const [savingClauseId, setSavingClauseId] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -74,16 +75,18 @@ export default function PolicyPage() {
   const [actionBusy, setActionBusy] = useState(false);
   const [addingClause, setAddingClause] = useState(false);
   const [newClause, setNewClause] = useState({ stableKey: "", title: "", text: "", category: "" });
+  const [aiProposedIds, setAiProposedIds] = useState<Set<string>>(() => getAiProposedClauseIds(policyId));
+  const [standaloneEdits, setStandaloneEdits] = useState<Record<string, { title: string; text: string; category: string }>>({});
 
   const refreshChanges = useCallback(async (draftVersionId: string, isCurrent: () => boolean = () => true) => {
     const fresh = await getVersionChanges(draftVersionId);
     if (!isCurrent()) return;
     setChanges(fresh);
-    setDraftTexts((previous) => {
+    setDraftValues((previous) => {
       const next = { ...previous };
       for (const change of fresh) {
         if (change.after && !(change.after.id in next)) {
-          next[change.after.id] = change.after.text;
+          next[change.after.id] = { title: change.after.title, text: change.after.text, category: change.after.category };
         }
       }
       return next;
@@ -97,7 +100,8 @@ export default function PolicyPage() {
     setPolicy(null);
     setChanges(null);
     setGraph(null);
-    setDraftTexts({});
+    setDraftValues({});
+    setAiProposedIds(getAiProposedClauseIds(policyId));
     getPolicy(policyId)
       .then(async (detail) => {
         const active = detail.versions.find(version => version.status === "ACTIVE");
@@ -150,7 +154,8 @@ export default function PolicyPage() {
     setActionBusy(true);
     setActionError("");
     try {
-      await createRevision(policyId);
+      const revision = await createRevision(policyId);
+      navigate(`/policies/${policyId}?version=${revision.id}`);
       setRefreshToken(value => value + 1);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Could not create a revision.");
@@ -165,6 +170,8 @@ export default function PolicyPage() {
     setActionError("");
     try {
       await publishVersion(policy.draftVersion.id);
+      clearAiProposedClauses(policyId);
+      setAiProposedIds(new Set());
       setRefreshToken(value => value + 1);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Could not publish this version.");
@@ -207,6 +214,20 @@ export default function PolicyPage() {
     }
   };
 
+  const handleSaveStandaloneClause = async (clauseId: string) => {
+    if (!policy?.draftVersion) return;
+    const clause = policy.draftVersion.clauses.find(row => row.id === clauseId);
+    if (!clause) return;
+    const draft = standaloneEdits[clauseId] ?? clause;
+    setActionBusy(true); setActionError("");
+    try {
+      await updateClause(policy.draftVersion.id, clauseId, { title: draft.title.trim(), text: draft.text.trim(), category: draft.category.trim() });
+      setStandaloneEdits(previous => { const next = { ...previous }; delete next[clauseId]; return next; });
+      setRefreshToken(value => value + 1);
+    } catch (err: unknown) { setActionError(err instanceof Error ? err.message : "Could not save this clause."); }
+    finally { setActionBusy(false); }
+  };
+
   const changedCount = useMemo(
     () =>
       (changes ?? []).filter(
@@ -217,17 +238,20 @@ export default function PolicyPage() {
 
   const handleSave = async (change: ClauseChange) => {
     if (!policy?.draftVersion || !change.after) return;
-    const text = (draftTexts[change.after.id] ?? "").trim();
-    if (text.length === 0) {
-      setSaveError("Draft text cannot be empty.");
+    const value = draftValues[change.after.id] ?? change.after;
+    const title = value.title.trim();
+    const text = value.text.trim();
+    const category = value.category.trim();
+    if (!title || !text || !category) {
+      setSaveError("Clause title, text, and category are required.");
       return;
     }
     setSavingClauseId(change.after.id);
     setSaveError("");
     setSaveNotice("");
     try {
-      const updated = await updateClause(policy.draftVersion.id, change.after.id, { text });
-      setDraftTexts((previous) => ({ ...previous, [updated.id]: updated.text }));
+      const updated = await updateClause(policy.draftVersion.id, change.after.id, { title, text, category });
+      setDraftValues((previous) => ({ ...previous, [updated.id]: { title: updated.title, text: updated.text, category: updated.category } }));
       await refreshChanges(policy.draftVersion.id);
       setSaveNotice("Draft saved.");
     } catch (err: unknown) {
@@ -338,7 +362,13 @@ export default function PolicyPage() {
               <h2 id="selected-version-heading" className="type-item-title text-ink">Version {policy.selectedVersion.versionNumber} clauses</h2>
               <span className="type-label-sm text-text-muted">{policy.selectedVersion.status}</span>
             </div>
-            {policy.selectedVersion.clauses.length ? <ul className="mt-4 divide-y divide-border-faint">{policy.selectedVersion.clauses.map(clause => <li key={clause.id} className="py-4 first:pt-0 last:pb-0"><p className="type-micro-mono uppercase text-accent">{clause.stableKey} · {clause.category}</p><h3 className="type-item-title mt-1 text-ink">{clause.title}</h3><p className="type-body-md mt-2 text-text-secondary">{clause.text}</p></li>)}</ul> : <p className="type-body-md mt-4 text-text-muted">This version has no clauses.</p>}
+            {policy.selectedVersion.clauses.length ? <ul className="mt-4 divide-y divide-border-faint">{policy.selectedVersion.clauses.map(clause => {
+              const canEdit = policy.draftVersion?.id === policy.selectedVersion?.id;
+              const value = standaloneEdits[clause.id] ?? { title: clause.title, text: clause.text, category: clause.category };
+              const dirty = value.title !== clause.title || value.text !== clause.text || value.category !== clause.category;
+              const update = (key: "title" | "text" | "category", nextValue: string) => setStandaloneEdits(previous => ({ ...previous, [clause.id]: { ...(previous[clause.id] ?? clause), [key]: nextValue } }));
+              return <li key={clause.id} className="py-4 first:pt-0 last:pb-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="type-micro-mono uppercase text-accent">{clause.stableKey} · {value.category}</p><div className="flex items-center gap-2">{policy.selectedVersion?.status === "DRAFT" && aiProposedIds.has(clause.id) && <span className="type-label-sm inline-flex items-center gap-2 rounded-chip border border-dashed border-border-strong bg-surface-2 px-3 py-1 text-accent">AI-proposed</span>}{canEdit && <button type="button" onClick={() => void handleDeleteClause(clause.id)} disabled={actionBusy} className="type-label-sm rounded-inner border border-border-default px-3 py-2 hover:bg-surface-2">Delete</button>}</div></div>{canEdit ? <div className="mt-2 grid gap-3"><label className="type-label-sm text-text-muted">Title<input value={value.title} onChange={event => update("title", event.target.value)} className="type-body-md mt-1 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" /></label><label className="type-label-sm text-text-muted">Category<input value={value.category} onChange={event => update("category", event.target.value)} className="type-body-md mt-1 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" /></label><label className="type-label-sm text-text-muted">Clause text<textarea rows={3} value={value.text} onChange={event => update("text", event.target.value)} className="type-body-md mt-1 w-full rounded-inner border border-border-default bg-surface-white p-3 text-ink" /></label><div><button type="button" onClick={() => void handleSaveStandaloneClause(clause.id)} disabled={!dirty || actionBusy} className="type-label-md inline-flex h-10 items-center rounded-action bg-ink px-6 text-on-dark hover:bg-accent disabled:opacity-50">Save clause</button></div></div> : <><h3 className="type-item-title mt-1 text-ink">{clause.title}</h3><p className="type-body-md mt-2 text-text-secondary">{clause.text}</p></>}</li>;
+            })}</ul> : <p className="type-body-md mt-4 text-text-muted">This version has no clauses.</p>}
           </section>
         )}
 
@@ -388,12 +418,8 @@ export default function PolicyPage() {
 
         <div className="mt-4 flex flex-col gap-4">
           {(changes ?? []).map((change) => {
-            const draftValue = change.after
-              ? (draftTexts[change.after.id] ?? change.after.text)
-              : "";
-            const dirty = change.after
-              ? draftValue !== change.after.text
-              : false;
+            const draftValue = change.after ? (draftValues[change.after.id] ?? change.after) : null;
+            const dirty = Boolean(change.after && draftValue && (draftValue.title !== change.after.title || draftValue.text !== change.after.text || draftValue.category !== change.after.category));
             return (
               <section
                 key={change.stableKey}
@@ -437,19 +463,18 @@ export default function PolicyPage() {
                     <h2 className="type-label-sm text-text-muted">Draft version</h2>
                     {change.after ? (
                       <>
-                        <label
-                          htmlFor={`draft-${change.after.id}`}
-                          className="sr-only"
-                        >
-                          Draft text for {change.stableKey}
-                        </label>
+                        <label htmlFor={`title-${change.after.id}`} className="type-label-sm text-text-muted">Clause title</label>
+                        <input id={`title-${change.after.id}`} value={draftValue?.title ?? change.after.title} onChange={event => setDraftValues(previous => ({ ...previous, [change.after!.id]: { ...(previous[change.after!.id] ?? change.after!), title: event.target.value } }))} className="type-body-md mt-1 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" />
+                        <label htmlFor={`category-${change.after.id}`} className="type-label-sm mt-3 block text-text-muted">Category</label>
+                        <input id={`category-${change.after.id}`} value={draftValue?.category ?? change.after.category} onChange={event => setDraftValues(previous => ({ ...previous, [change.after!.id]: { ...(previous[change.after!.id] ?? change.after!), category: event.target.value } }))} className="type-body-md mt-1 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" />
+                        <label htmlFor={`draft-${change.after.id}`} className="type-label-sm mt-3 block text-text-muted">Clause text</label>
                         <textarea
                           id={`draft-${change.after.id}`}
-                          value={draftValue}
+                          value={draftValue?.text ?? change.after.text}
                           onChange={(event) =>
-                            setDraftTexts((previous) => ({
+                            setDraftValues((previous) => ({
                               ...previous,
-                              [change.after?.id as string]: event.target.value,
+                              [change.after!.id]: { ...(previous[change.after!.id] ?? change.after!), text: event.target.value },
                             }))
                           }
                           rows={4}

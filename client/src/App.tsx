@@ -3,6 +3,9 @@ import DashboardPage from "./pages/DashboardPage.tsx";
 import ImpactReportPage from "./pages/ImpactReportPage.tsx";
 import PolicyPage from "./pages/PolicyPage.tsx";
 import NewPolicyPage from "./pages/NewPolicyPage.tsx";
+import ItemsPage from "./pages/ItemsPage.tsx";
+import DependenciesPage from "./pages/DependenciesPage.tsx";
+import ComparePage from "./pages/ComparePage.tsx";
 import RoutePlaceholderPage from "./pages/RoutePlaceholderPage.tsx";
 
 export default function App() {
@@ -11,10 +14,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/policies/new" element={<NewPolicyPage />} />
-        <Route path="/items" element={<RoutePlaceholderPage title="Operational items" description="Manage the operational items used by hospital departments." />} />
+        <Route path="/items" element={<ItemsPage />} />
         <Route path="/policies/:policyId" element={<PolicyPage />} />
-        <Route path="/policies/:policyId/dependencies" element={<RoutePlaceholderPage title="Dependency review" description="Review proposed dependencies and manage approved connections." />} />
-        <Route path="/policies/:policyId/compare" element={<RoutePlaceholderPage title="Version comparison" description="Compare policy versions before running impact analysis." />} />
+        <Route path="/policies/:policyId/dependencies" element={<DependenciesPage />} />
+        <Route path="/policies/:policyId/compare" element={<ComparePage />} />
         <Route path="/impact-runs/:impactRunId" element={<ImpactReportPage />} />
         <Route path="*" element={<RoutePlaceholderPage title="Page not found" description="This address does not match a CareSync page. Return to the dashboard to continue." />} />
       </Routes>

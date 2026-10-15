@@ -98,7 +98,7 @@ scaffold
 ### Finish
 
 - [ ] F-14 `[FRONTEND]` Loading, error, and empty states verified on every screen; responsive layout checked
-- [ ] F-15 `[FRONTEND]` `npm run lint` and `npm run build` pass
+- [x] F-15 `[FRONTEND]` `npm run lint` and `npm run build` pass
 
 **Frontend exit:** every screen works against the mock layer and matches `DESIGN.md`.
 
