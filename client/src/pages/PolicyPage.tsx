@@ -13,7 +13,7 @@ import {
   publishVersion,
   updateClause,
 } from "../api/client.ts";
-import { clearAiProposedClauses, getAiProposedClauseIds } from "../api/clauseProvenance.ts";
+import { clearAiProposedClauses, getAiProposedClauseIds, rememberAiProposedClauses } from "../api/clauseProvenance.ts";
 import AppShell from "../components/AppShell.tsx";
 import DependencyGraph from "../components/DependencyGraph.tsx";
 import { ChangeBadge } from "../components/badges.tsx";
@@ -77,6 +77,7 @@ export default function PolicyPage() {
   const [newClause, setNewClause] = useState({ stableKey: "", title: "", text: "", category: "" });
   const [aiProposedIds, setAiProposedIds] = useState<Set<string>>(() => getAiProposedClauseIds(policyId));
   const [standaloneEdits, setStandaloneEdits] = useState<Record<string, { title: string; text: string; category: string }>>({});
+  const [revisionText, setRevisionText] = useState("");
 
   const refreshChanges = useCallback(async (draftVersionId: string, isCurrent: () => boolean = () => true) => {
     const fresh = await getVersionChanges(draftVersionId);
@@ -120,7 +121,7 @@ export default function PolicyPage() {
             if (!cancelled) setLoadError(err instanceof Error ? `Graph unavailable: ${err.message}` : "Graph unavailable.");
           });
         }
-        if (draftVersion) {
+        if (draftVersion && detail.versions.some(version => version.versionNumber === draftVersion.versionNumber - 1)) {
           refreshChanges(draftVersion.id, () => !cancelled)
             .then(() => {
               if (!cancelled) setLoading(false);
@@ -154,7 +155,12 @@ export default function PolicyPage() {
     setActionBusy(true);
     setActionError("");
     try {
-      const revision = await createRevision(policyId);
+      const revision = await createRevision(policyId, revisionText.trim() ? { text: revisionText.trim() } : {});
+      if (revisionText.trim()) {
+        rememberAiProposedClauses(policyId, revision.clauses.map(clause => clause.id));
+        setAiProposedIds(getAiProposedClauseIds(policyId));
+      }
+      setRevisionText("");
       navigate(`/policies/${policyId}?version=${revision.id}`);
       setRefreshToken(value => value + 1);
     } catch (err: unknown) {
@@ -343,6 +349,8 @@ export default function PolicyPage() {
             </button>
           </div>
         </div>
+
+        {!policy.draftVersion && policy.activeVersion && <div className="mt-5 rounded-card border border-border-default bg-glass-80 p-4"><label htmlFor="revision-text" className="type-label-sm text-text-muted">Replacement policy text · optional</label><textarea id="revision-text" rows={3} value={revisionText} onChange={event => setRevisionText(event.target.value)} className="type-body-md mt-2 w-full rounded-inner border border-border-default bg-surface-white p-3 text-ink" /><p className="type-body-sm mt-2 text-text-muted">Leave blank to copy the active clauses. Paste revised text to extract editable AI-proposed clauses when you create a revision.</p></div>}
 
         <section aria-labelledby="versions-heading" className="mt-6 rounded-card border border-border-default bg-glass-80 p-5 shadow-sm backdrop-blur-card">
           <div className="flex flex-wrap items-center justify-between gap-3">

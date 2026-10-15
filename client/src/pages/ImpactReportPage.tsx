@@ -147,13 +147,15 @@ export default function ImpactReportPage() {
               ))}
               <span aria-live="polite">
                 {results.length === 1
-                  ? "1 affected artifact"
-                  : `${results.length} affected artifacts`}
+                   ? "1 affected operational item"
+                   : `${results.length} affected operational items`}
               </span>
             </div>
             {report.affectedDepartments.length > 0 && <p className="type-body-sm mt-2 text-text-muted">Affected departments: {report.affectedDepartments.join(" · ")}</p>}
           </div>
         </div>
+
+        {report.changedClauses.length > 0 && <section aria-labelledby="changed-clauses-title" className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"><h2 id="changed-clauses-title" className="type-card-title text-ink">Changed clauses</h2><div className="mt-4 flex flex-col gap-4">{report.changedClauses.map(change => <article key={change.stableKey}><div className="flex flex-wrap items-center gap-3"><span className="type-micro-mono text-accent">{change.stableKey}</span><ChangeBadge changeType={change.changeType} /></div><div className="mt-3 grid gap-4 md:grid-cols-2"><div><h3 className="type-label-sm text-text-muted">Previous wording</h3><p className="type-body-md mt-2 whitespace-pre-wrap rounded-inner border border-border-default bg-surface-white p-4 text-text-secondary">{change.oldText ?? "Clause not present"}</p></div><div><h3 className="type-label-sm text-text-muted">New wording</h3><p className="type-body-md mt-2 whitespace-pre-wrap rounded-inner border border-border-default bg-surface-white p-4 text-text-secondary">{change.newText ?? "Clause removed"}</p></div></div></article>)}</div></section>}
 
         {results.length === 0 ? (
           <div className="mt-6"><EmptyState title="No affected operational items" description={report.changedClauses.length === 0 ? "No clauses changed between these versions." : "No approved downstream operational items were found for the changed clauses."} /></div>
@@ -184,7 +186,7 @@ export default function ImpactReportPage() {
                           {result.artifact.name}
                         </span>
                         <span className="type-body-sm mt-0.5 block text-text-muted">
-                          {humanArtifactType(result.artifact.type)} · {hopsLabel(result.distance)}
+                           {humanArtifactType(result.artifact.type)} · {result.artifact.department} · {hopsLabel(result.distance)}
                         </span>
                         <span className="mt-1.5 block">
                           <StatusBadge status={result.reviewStatus} />

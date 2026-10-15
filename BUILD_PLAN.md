@@ -87,17 +87,17 @@ scaffold
 
 - [x] F-05 `[FRONTEND]` Dashboard `/`
 - [x] F-06 `[FRONTEND]` New policy `/policies/new` with AI loading and error states
-- [ ] F-07 `[FRONTEND]` Policy detail `/policies/:policyId`: versions, clauses, draft edit/add/delete, AI-proposed marker, Publish, Create revision
-- [ ] F-08 `[FRONTEND]` Operational items `/items`: list, create, edit, delete
-- [ ] F-09 `[FRONTEND]` `DependencyGraph` component: solid approved edges, dashed proposed edges, relationship labels, fit view, text equivalent
-- [ ] F-10 `[FRONTEND]` Dependency review `/policies/:policyId/dependencies`: Suggest, Approve, Edit, Reject, manual Add, Remove
-- [ ] F-11 `[FRONTEND]` Comparison `/policies/:policyId/compare`: version pickers, side-by-side diff, change badges, Run impact analysis
-- [ ] F-12 `[FRONTEND]` Impact report `/impact-runs/:impactRunId`: header, result list, `PathViewer`, graph, selected-path highlight
-- [ ] F-13 `[FRONTEND]` Review actions: Confirm, Dismiss, Resolve with status badge
+- [x] F-07 `[FRONTEND]` Policy detail `/policies/:policyId`: versions, clauses, draft edit/add/delete, AI-proposed marker, Publish, Create revision
+- [x] F-08 `[FRONTEND]` Operational items `/items`: list, create, edit, delete
+- [x] F-09 `[FRONTEND]` `DependencyGraph` component: solid approved edges, dashed proposed edges, relationship labels, fit view, text equivalent
+- [x] F-10 `[FRONTEND]` Dependency review `/policies/:policyId/dependencies`: Suggest, Approve, Edit, Reject, manual Add, Remove
+- [x] F-11 `[FRONTEND]` Comparison `/policies/:policyId/compare`: version pickers, side-by-side diff, change badges, Run impact analysis
+- [x] F-12 `[FRONTEND]` Impact report `/impact-runs/:impactRunId`: header, result list, `PathViewer`, graph, selected-path highlight
+- [x] F-13 `[FRONTEND]` Review actions: Confirm, Dismiss, Resolve with status badge
 
 ### Finish
 
-- [ ] F-14 `[FRONTEND]` Loading, error, and empty states verified on every screen; responsive layout checked
+- [x] F-14 `[FRONTEND]` Loading, error, and empty states verified on every screen; responsive layout checked
 - [x] F-15 `[FRONTEND]` `npm run lint` and `npm run build` pass
 
 **Frontend exit:** every screen works against the mock layer and matches `DESIGN.md`.
