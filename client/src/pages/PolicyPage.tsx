@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ApiError,
+  createClause,
+  createRevision,
   createImpactRun,
+  deleteClause,
   getPolicy,
   getPolicyGraph,
   getVersion,
   getVersionChanges,
+  publishVersion,
   updateClause,
 } from "../api/client.ts";
 import AppShell from "../components/AppShell.tsx";
@@ -23,6 +27,7 @@ import type {
 interface PolicyView extends PolicyDetail {
   activeVersion: VersionDetail | null;
   draftVersion: VersionDetail | null;
+  selectedVersion: VersionDetail | null;
 }
 
 function deadlineMention(text: string): string | null {
@@ -48,6 +53,8 @@ function MutationLine({ activeText, draftText }: { activeText: string; draftText
 export default function PolicyPage() {
   const { policyId = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedVersionId = searchParams.get("version");
 
   const [policy, setPolicy] = useState<PolicyView | null>(null);
   const [graph, setGraph] = useState<PolicyGraph | null>(null);
@@ -62,6 +69,11 @@ export default function PolicyPage() {
 
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [actionError, setActionError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [addingClause, setAddingClause] = useState(false);
+  const [newClause, setNewClause] = useState({ stableKey: "", title: "", text: "", category: "" });
 
   const refreshChanges = useCallback(async (draftVersionId: string, isCurrent: () => boolean = () => true) => {
     const fresh = await getVersionChanges(draftVersionId);
@@ -90,12 +102,15 @@ export default function PolicyPage() {
       .then(async (detail) => {
         const active = detail.versions.find(version => version.status === "ACTIVE");
         const draft = detail.versions.find(version => version.status === "DRAFT");
-        const [activeVersion, draftVersion] = await Promise.all([
+        const [activeVersion, draftVersion, requestedVersion] = await Promise.all([
           active ? getVersion(active.id) : null,
           draft ? getVersion(draft.id) : null,
+          selectedVersionId && detail.versions.some(version => version.id === selectedVersionId)
+            ? getVersion(selectedVersionId)
+            : null,
         ]);
         if (cancelled) return;
-        setPolicy({ ...detail, activeVersion, draftVersion });
+        setPolicy({ ...detail, activeVersion, draftVersion, selectedVersion: requestedVersion ?? draftVersion ?? activeVersion });
         if (activeVersion || draftVersion) {
           getPolicyGraph(policyId).then(value => { if (!cancelled) setGraph(value); }).catch((err: unknown) => {
             if (!cancelled) setLoadError(err instanceof Error ? `Graph unavailable: ${err.message}` : "Graph unavailable.");
@@ -129,7 +144,68 @@ export default function PolicyPage() {
     return () => {
       cancelled = true;
     };
-  }, [policyId, refreshChanges]);
+  }, [policyId, refreshChanges, refreshToken, selectedVersionId]);
+
+  const handleCreateRevision = async () => {
+    setActionBusy(true);
+    setActionError("");
+    try {
+      await createRevision(policyId);
+      setRefreshToken(value => value + 1);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Could not create a revision.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!policy?.draftVersion) return;
+    setActionBusy(true);
+    setActionError("");
+    try {
+      await publishVersion(policy.draftVersion.id);
+      setRefreshToken(value => value + 1);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Could not publish this version.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleAddClause = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!policy?.draftVersion) return;
+    setActionBusy(true);
+    setActionError("");
+    try {
+      await createClause(policy.draftVersion.id, {
+        stableKey: newClause.stableKey.trim(), title: newClause.title.trim(),
+        text: newClause.text.trim(), category: newClause.category.trim(),
+      });
+      setNewClause({ stableKey: "", title: "", text: "", category: "" });
+      setAddingClause(false);
+      setRefreshToken(value => value + 1);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Could not add the clause.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDeleteClause = async (clauseId: string) => {
+    if (!policy?.draftVersion) return;
+    setActionBusy(true);
+    setActionError("");
+    try {
+      await deleteClause(policy.draftVersion.id, clauseId);
+      setRefreshToken(value => value + 1);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Could not delete the clause.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   const changedCount = useMemo(
     () =>
@@ -221,6 +297,7 @@ export default function PolicyPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            {policy.draftVersion ? <button type="button" onClick={handlePublish} disabled={actionBusy || policy.draftVersion.clauses.length === 0} className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50">{actionBusy ? "Saving…" : "Publish version"}</button> : <button type="button" onClick={handleCreateRevision} disabled={actionBusy || !policy.activeVersion} className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50">{actionBusy ? "Creating…" : "Create revision"}</button>}
             <a
               href="#graph"
               className="type-label-md inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2"
@@ -242,6 +319,30 @@ export default function PolicyPage() {
             </button>
           </div>
         </div>
+
+        <section aria-labelledby="versions-heading" className="mt-6 rounded-card border border-border-default bg-glass-80 p-5 shadow-sm backdrop-blur-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="versions-heading" className="type-item-title text-ink">Versions</h2>
+              <p className="type-body-sm mt-1 text-text-muted">Policy history and current draft.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {policy.versions.map(version => <Link key={version.id} to={`/policies/${policyId}?version=${version.id}`} aria-current={policy.selectedVersion?.id === version.id ? "page" : undefined} className={`inline-flex items-center gap-2 rounded-inner border px-3 py-2 hover:bg-surface-2 ${policy.selectedVersion?.id === version.id ? "border-border-strong bg-surface-2" : "border-border-default bg-surface-white"}`}><span className="type-micro-mono">v{version.versionNumber}</span><span className="type-label-sm text-text-muted">{version.status}</span></Link>)}
+            </div>
+          </div>
+        </section>
+
+        {policy.selectedVersion && (
+          <section className="mt-4 rounded-card border border-border-default bg-glass-80 p-5 shadow-sm backdrop-blur-card" aria-labelledby="selected-version-heading">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="selected-version-heading" className="type-item-title text-ink">Version {policy.selectedVersion.versionNumber} clauses</h2>
+              <span className="type-label-sm text-text-muted">{policy.selectedVersion.status}</span>
+            </div>
+            {policy.selectedVersion.clauses.length ? <ul className="mt-4 divide-y divide-border-faint">{policy.selectedVersion.clauses.map(clause => <li key={clause.id} className="py-4 first:pt-0 last:pb-0"><p className="type-micro-mono uppercase text-accent">{clause.stableKey} · {clause.category}</p><h3 className="type-item-title mt-1 text-ink">{clause.title}</h3><p className="type-body-md mt-2 text-text-secondary">{clause.text}</p></li>)}</ul> : <p className="type-body-md mt-4 text-text-muted">This version has no clauses.</p>}
+          </section>
+        )}
+
+        {actionError && <div role="alert" className="mt-4 rounded-card border border-border-strong border-l-2 border-l-ink bg-surface-white p-4"><p className="type-label-sm">Action could not be completed</p><p className="type-body-md mt-1 text-text-secondary">{actionError}</p></div>}
 
         {loadError && (
           <div
@@ -312,6 +413,13 @@ export default function PolicyPage() {
                   />
                 )}
 
+                {policy.draftVersion && change.after && (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="type-label-sm text-accent">Draft clause</p>
+                    <button type="button" onClick={() => handleDeleteClause(change.after!.id)} disabled={actionBusy} className="type-label-sm rounded-inner border border-border-default bg-glass-80 px-3 py-2 text-ink hover:bg-surface-2 disabled:opacity-50">Delete clause</button>
+                  </div>
+                )}
+
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
                     <h2 className="type-label-sm text-text-muted">Active version</h2>
@@ -374,6 +482,21 @@ export default function PolicyPage() {
             );
           })}
         </div>
+
+        {policy.draftVersion && (
+          <section className="mt-5 rounded-card border border-border-default bg-glass-80 p-5 shadow-sm backdrop-blur-card" aria-labelledby="add-clause-heading">
+            {!addingClause ? <button type="button" onClick={() => setAddingClause(true)} className="type-label-md inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink hover:bg-surface-2">Add clause</button> : <form onSubmit={handleAddClause} className="grid gap-4">
+              <h2 id="add-clause-heading" className="type-item-title">Add a draft clause</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="type-label-sm text-text-muted">Stable key<input required value={newClause.stableKey} onChange={event => setNewClause(value => ({ ...value, stableKey: event.target.value }))} className="type-body-md mt-2 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" /></label>
+                <label className="type-label-sm text-text-muted">Title<input required value={newClause.title} onChange={event => setNewClause(value => ({ ...value, title: event.target.value }))} className="type-body-md mt-2 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" /></label>
+                <label className="type-label-sm text-text-muted sm:col-span-2">Category<input required value={newClause.category} onChange={event => setNewClause(value => ({ ...value, category: event.target.value }))} className="type-body-md mt-2 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 text-ink" /></label>
+                <label className="type-label-sm text-text-muted sm:col-span-2">Clause text<textarea required rows={4} value={newClause.text} onChange={event => setNewClause(value => ({ ...value, text: event.target.value }))} className="type-body-md mt-2 w-full rounded-inner border border-border-default bg-surface-white p-3 text-ink" /></label>
+              </div>
+              <div className="flex flex-wrap gap-3"><button type="submit" disabled={actionBusy} className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark hover:bg-accent disabled:opacity-50">Add clause</button><button type="button" onClick={() => setAddingClause(false)} className="type-label-md h-11 rounded-action border border-border-default px-6 hover:bg-surface-2">Cancel</button></div>
+            </form>}
+          </section>
+        )}
 
         {(!changes || changes.length === 0) && !policy.draftVersion && (
           <div className="mt-4 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card">
