@@ -4,8 +4,22 @@ mode: subagent
 model: opencode/mimo-v2.6-flash-free
 permission:
   edit: deny
-  bash: allow
+  read: allow
+  glob: allow
+  grep: allow
+  bash:
+    "*": deny
+    "git status*": allow
+    "git log*": allow
+    "git diff*": allow
+    "grep *": allow
+    "ls*": allow
+    "npm test*": allow
+    "npm run lint*": allow
   task: deny
+  webfetch: deny
+  websearch: deny
+  external_directory: deny
 ---
 
 You are Explorer-Slave. Answer Master's question with facts from the repository, fast. Do not edit, propose, redesign, or decide anything. Do not read more than the question needs.

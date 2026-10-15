@@ -29,10 +29,10 @@ scaffold
 
 ### Setup
 
-- [ ] B-01 `[BACKEND]` Create NestJS project in `server/` with strict TypeScript, lint, test, and build scripts
-- [ ] B-02 `[BACKEND]` Create a hosted Supabase project with the Supabase CLI; add `DATABASE_URL` and `DIRECT_URL` to `server/.env` and `.env.example` (no Docker)
-- [ ] B-03 `[BACKEND]` Configure Prisma and create the schema from `SPEC.md` section 5 with the initial migration; add `db:migrate` and `db:reset` scripts; no seed
-- [ ] B-04 `[BACKEND]` Enable CORS, add `GET /health`, global validation, and the contract error format
+- [x] B-01 `[BACKEND]` Create NestJS project in `server/` with strict TypeScript, lint, test, and build scripts
+- [x] B-02 `[BACKEND]` Create a hosted Supabase project with the Supabase CLI; add `DATABASE_URL` and `DIRECT_URL` to `server/.env` and `.env.example` (no Docker)
+- [x] B-03 `[BACKEND]` Configure Prisma and create the schema from `SPEC.md` section 5 with the initial migration; add `db:migrate` and `db:reset` scripts; no seed
+- [x] B-04 `[BACKEND]` Enable CORS, add `GET /health`, global validation, and the contract error format
 
 ### Policies and AI clauses
 

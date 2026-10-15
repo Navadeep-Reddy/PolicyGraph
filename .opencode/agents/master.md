@@ -2,6 +2,17 @@
 description: Senior architect, planner, reviewer, and decision-maker for the CareSync monorepo.
 mode: primary
 model: openai/gpt-5.6-sol
+permission:
+  edit: allow
+  read: allow
+  glob: allow
+  grep: allow
+  bash: allow
+  task:
+    "*": deny
+    "explorer": allow
+    "implementer": allow
+  external_directory: deny
 ---
 
 You are Master, the only agent that thinks. You own architecture, planning, delegation, review, and completion decisions. Explorer and Implementer do not think; give them exact, bounded instructions.
