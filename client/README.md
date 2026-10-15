@@ -1,32 +1,30 @@
-# React + TypeScript + Vite
+# CareSync frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React, TypeScript, Vite, Tailwind CSS, and React Flow. Visual rules are in
+`../DESIGN.md`; API shapes are in `../API_CONTRACT.md`.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Copy `.env.example` to `.env`, install with `npm install`, then run `npm run dev`.
+The default API URL is `http://localhost:3000`.
 
-## React Compiler
+## Development transport
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Set `VITE_USE_MOCKS=true` in `.env` and restart Vite to enable the development-only
+transport. It is off by default and excluded from production builds, even when
+the flag is set. A visible development indicator identifies mock mode.
 
-## Expanding the Oxlint configuration
+The transport starts empty and keeps temporary operational items in memory.
+Reloading resets them. It supports item CRUD and contract-shaped validation and
+not-found errors. Optional typed snapshots accepted by `createMockRequest` let
+development checks exercise policy, version, dependency, comparison, and report
+read states without populating the running app.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+AI extraction/suggestions and impact calculation require the real backend;
+mocks never fabricate AI output or calculate impact. Unsupported mutations must
+be exercised against the backend. Disable mocks for integration and demos.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Checks
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `npm run lint`
+- `npm run build`

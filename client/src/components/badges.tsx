@@ -1,49 +1,53 @@
-import type { ChangeType, ReviewStatus } from "../types/index.ts";
+import type { ChangeType, DependencyStatus, ReviewStatus, VersionStatus } from "../types/index.ts";
 
-function badgeClass(tone: "brand" | "amber" | "quiet"): string {
+type BadgeTone = "active" | "review" | "proposed" | "positive" | "neutral" | "history";
+
+function badgeClass(tone: BadgeTone): string {
   const base =
-    "inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]";
-  if (tone === "brand") return `${base} bg-[#EAF2EE] text-[#174C3C]`;
-  if (tone === "amber") return `${base} bg-[#FBF3EA] text-[#8A5A1E]`;
-  return `${base} bg-stone-100 text-stone-600`;
+    "type-label-sm inline-flex items-center gap-2 rounded-chip px-3 py-1";
+  if (tone === "active") return `${base} bg-ink text-on-dark`;
+  if (tone === "review")
+    return `${base} border border-border-strong bg-surface-2 text-accent`;
+  if (tone === "proposed")
+    return `${base} border border-dashed border-border-strong bg-surface-2 text-accent`;
+  if (tone === "positive")
+    return `${base} border border-positive-border bg-positive-bg text-positive-text`;
+  if (tone === "history") return `${base} border border-border-default bg-transparent text-text-muted`;
+  return `${base} border border-border-default bg-surface-1 text-text-muted`;
 }
 
 export function ChangeBadge({ changeType }: { changeType: ChangeType }) {
-  const tone = changeType === "MODIFIED" ? "amber" : changeType === "UNCHANGED" ? "quiet" : "brand";
+  const tone: BadgeTone =
+    changeType === "MODIFIED" || changeType === "ADDED" ? "review" : "neutral";
   return (
     <span className={badgeClass(tone)} aria-label={`Change state: ${changeType}`}>
+      {changeType !== "UNCHANGED" && (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          {changeType === "ADDED" ? <path d="M8 2v12M2 8h12" /> : changeType === "REMOVED" ? <path d="M2 8h12" /> : <path d="m3 11 1-4 6-5 3 3-6 6-4 1Z" />}
+        </svg>
+      )}
       {changeType}
     </span>
   );
 }
 
-const REVIEW_LABELS: Record<ReviewStatus, string> = {
-  PROPOSED: "Proposed",
-  CONFIRMED: "Confirmed",
-  DISMISSED: "Dismissed",
-  RESOLVED: "Resolved",
-};
-
-export function StatusBadge({ status }: { status: ReviewStatus }) {
-  const tone = status === "PROPOSED" ? "amber" : status === "CONFIRMED" ? "brand" : "quiet";
+export function StatusBadge({ status }: { status: ReviewStatus | DependencyStatus | VersionStatus }) {
+  const tone: BadgeTone =
+    status === "PROPOSED"
+      ? "proposed"
+      : status === "CONFIRMED" || status === "APPROVED"
+        ? "active"
+        : status === "RESOLVED" || status === "ACTIVE"
+          ? "positive"
+          : status === "ARCHIVED" ? "history" : "neutral";
   return (
-    <span className={badgeClass(tone)} aria-label={`Review status: ${REVIEW_LABELS[status]}`}>
-      {REVIEW_LABELS[status]}
-    </span>
-  );
-}
-
-export function VersionBadge({ status }: { status: "ACTIVE" | "DRAFT" }) {
-  return (
-    <span
-      className={badgeClass(status === "ACTIVE" ? "brand" : "amber")}
-      aria-label={`Version status: ${status}`}
-    >
+    <span className={badgeClass(tone)} aria-label={`Status: ${status}`}>
+      {status === "ARCHIVED" && <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg>}
       {status}
     </span>
   );
 }
 
-export function reviewLabel(status: ReviewStatus): string {
-  return REVIEW_LABELS[status];
+export function VersionBadge({ status }: { status: VersionStatus }) {
+  return <StatusBadge status={status} />;
 }

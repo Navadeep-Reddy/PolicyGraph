@@ -10,8 +10,8 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { humanArtifactType, humanRelationshipLabel } from "../api/client.ts";
-import type { GraphEdgeDto, GraphNodeDto } from "../types/index.ts";
+import { humanRelationshipLabel } from "../api/client.ts";
+import type { GraphEdge, GraphNode as GraphNodeType } from "../types/index.ts";
 
 interface GraphNodeData extends Record<string, unknown> {
   kindLabel: string;
@@ -25,35 +25,35 @@ interface GraphNodeData extends Record<string, unknown> {
 function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
   const surface =
     data.visual === "clause"
-      ? "border-[#174C3C]/30"
+      ? "border-border-strong bg-glass-80"
       : data.visual === "affected"
-        ? "border-[#D98B37] bg-[#FBF3EA]"
-        : "border-[#E6E7E4]";
+        ? "border-accent bg-surface-2"
+        : "border-border-faint bg-surface-white";
   const icon =
     data.visual === "clause"
-      ? "bg-[#174C3C] text-white"
+      ? "bg-ink text-on-dark"
       : data.visual === "affected"
-        ? "bg-[#D98B37] text-white"
-        : "bg-stone-100 text-stone-500";
+        ? "bg-accent text-on-dark"
+        : "bg-surface-2 text-accent";
   return (
     <div
-      className={`w-[220px] rounded-xl border bg-white px-3 py-2.5 shadow-none ${surface} ${
-        data.dimmed ? "opacity-30" : ""
+      className={`w-[220px] rounded-card border px-3 py-2.5 shadow-sm ${surface} ${
+        data.dimmed ? "opacity-35" : ""
       }`}
     >
-      <Handle type="target" position={Position.Left} className="!bg-stone-300" />
+      <Handle type="target" position={Position.Left} className="!bg-surface-4" />
       <div className="flex items-start gap-2">
         <span
           aria-hidden="true"
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[13px] font-semibold ${icon}`}
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-inner text-sm font-semibold ${icon}`}
         >
           {data.glyph}
         </span>
         <span className="min-w-0">
-          <span className="block text-[10.5px] font-medium text-stone-500">{data.kindLabel}</span>
+          <span className="type-label-sm block text-text-muted">{data.kindLabel}</span>
           <span
-            className={`block truncate text-[13.5px] font-semibold text-stone-800 ${
-              data.mono ? "font-mono text-[12px]" : ""
+            className={`block truncate ${
+              data.mono ? "type-micro-mono text-accent" : "text-sm font-semibold text-ink"
             }`}
             title={data.name}
           >
@@ -61,7 +61,7 @@ function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
           </span>
         </span>
       </div>
-      <Handle type="source" position={Position.Right} className="!bg-stone-300" />
+      <Handle type="source" position={Position.Right} className="!bg-surface-4" />
     </div>
   );
 }
@@ -69,41 +69,37 @@ function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
 const nodeTypes = { policyNode: GraphNode };
 
 interface DependencyGraphProps {
-  nodes: GraphNodeDto[];
-  edges: GraphEdgeDto[];
+  nodes: GraphNodeType[];
+  edges: GraphEdge[];
   selectedNodeIds?: string[];
   selectedEdgeIds?: string[];
   affectedNodeId?: string | null;
   heightClassName?: string;
 }
 
-function glyphFor(node: GraphNodeDto): string {
-  if (node.nodeType === "CLAUSE") return "§";
-  if (node.artifactType === "FORM") return "▤";
-  if (node.artifactType === "PROCEDURE") return "☰";
-  return "</>";
+function glyphFor(node: GraphNodeType): string {
+  return node.type === "CLAUSE" ? "§" : "▤";
 }
 
-function kindLabelFor(node: GraphNodeDto): string {
-  if (node.nodeType === "CLAUSE") return "Policy clause";
-  return humanArtifactType(node.artifactType ?? "FORM");
+function kindLabelFor(node: GraphNodeType): string {
+  return node.type === "CLAUSE" ? "Policy clause" : "Operational item";
 }
 
 /** Layered layout: clause nodes in column 0, each hop one column right. */
-function layoutColumns(nodes: GraphNodeDto[], edges: GraphEdgeDto[]): Map<string, number> {
+function layoutColumns(nodes: GraphNodeType[], edges: GraphEdge[]): Map<string, number> {
   const distance = new Map<string, number>();
   const queue: string[] = [];
   for (const node of nodes) {
-    if (node.nodeType === "CLAUSE") {
+    if (node.type === "CLAUSE") {
       distance.set(node.id, 0);
       queue.push(node.id);
     }
   }
   const outgoing = new Map<string, string[]>();
   for (const edge of edges) {
-    const list = outgoing.get(edge.sourceNodeId) ?? [];
-    list.push(edge.targetNodeId);
-    outgoing.set(edge.sourceNodeId, list);
+    const list = outgoing.get(edge.source) ?? [];
+    list.push(edge.target);
+    outgoing.set(edge.source, list);
   }
   let head = 0;
   while (head < queue.length) {
@@ -136,7 +132,7 @@ export default function DependencyGraph({
     const selectedNodes = new Set(selectedNodeIds);
     const selectedEdges = new Set(selectedEdgeIds);
     const columns = layoutColumns(nodes, edges);
-    const byColumn = new Map<number, GraphNodeDto[]>();
+    const byColumn = new Map<number, GraphNodeType[]>();
     for (const node of nodes) {
       const col = columns.get(node.id) ?? 0;
       const list = byColumn.get(col) ?? [];
@@ -148,10 +144,10 @@ export default function DependencyGraph({
     for (const [col, list] of [...byColumn.entries()].sort((a, b) => a[0] - b[0])) {
       list
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => a.label.localeCompare(b.label))
         .forEach((node, row) => {
           const visual =
-            node.id === affectedNodeId ? "affected" : node.nodeType === "CLAUSE" ? "clause" : "artifact";
+            node.id === affectedNodeId ? "affected" : node.type === "CLAUSE" ? "clause" : "artifact";
           const dimmed = hasSelection && !selectedNodes.has(node.id);
           flowNodes.push({
             id: node.id,
@@ -159,8 +155,8 @@ export default function DependencyGraph({
             position: { x: 24 + col * 280, y: 24 + row * 132 },
             data: {
               kindLabel: kindLabelFor(node),
-              name: node.name,
-              mono: node.nodeType === "CLAUSE",
+              name: node.label,
+              mono: node.type === "CLAUSE",
               glyph: glyphFor(node),
               visual,
               dimmed,
@@ -176,22 +172,25 @@ export default function DependencyGraph({
       const onPath = selectedEdges.has(edge.id);
       return {
         id: edge.id,
-        source: edge.sourceNodeId,
-        target: edge.targetNodeId,
-        label: humanRelationshipLabel(edge.relationshipType, edge.relationshipLabel),
+        source: edge.source,
+        target: edge.target,
+        label: humanRelationshipLabel(edge.relationshipType).toUpperCase(),
         animated: false,
         style: {
-          stroke: onPath ? "#174C3C" : "#A8A29E",
+          stroke: "#36637C",
           strokeWidth: onPath ? 2.5 : 1.5,
           strokeDasharray: approved ? undefined : "5 4",
-          opacity: hasSelection && !onPath ? 0.25 : 1,
+          opacity: hasSelection && !onPath ? 0.35 : approved ? 1 : 0.6,
         },
+        // DESIGN.md §3.2 label-md: 11px, 600 weight, 0.14em tracking, uppercase.
+        // Selection is shown through colour and opacity, never weight.
         labelStyle: {
           fontSize: 11,
-          fill: onPath ? "#174C3C" : "#57534E",
-          fontWeight: onPath ? 700 : 500,
+          fill: onPath ? "#36637C" : "#75777D",
+          fontWeight: 600,
+          letterSpacing: "0.14em",
         },
-        labelBgStyle: { fill: "#F7F7F5" },
+        labelBgStyle: { fill: "#F5FAFF" },
         labelShowBg: true,
       };
     });
@@ -201,16 +200,17 @@ export default function DependencyGraph({
   if (nodes.length === 0) {
     return (
       <div
-        className={`flex ${heightClassName} items-center justify-center rounded-xl border border-[#E6E7E4] bg-[#F7F7F5]`}
+        className={`graph-canvas flex ${heightClassName} items-center justify-center rounded-card border border-border-default`}
       >
-        <p className="text-sm text-stone-500">No dependency graph available.</p>
+        <p className="type-body-md text-text-muted">No dependency graph available.</p>
       </div>
     );
   }
 
   return (
+    <>
     <div
-      className={`${heightClassName} overflow-hidden rounded-xl border border-[#E6E7E4] bg-[#F7F7F5]`}
+      className={`graph-canvas ${heightClassName} overflow-hidden rounded-card border border-border-default`}
       role="img"
       aria-label={`Dependency graph with ${nodes.length} nodes and ${edges.length} relationships. A textual path is listed beside the graph.`}
     >
@@ -224,9 +224,17 @@ export default function DependencyGraph({
         minZoom={0.4}
         maxZoom={1.5}
       >
-        <Background color="#D6D3D1" gap={20} size={1} />
+        <Background color="rgba(54,99,124,0.08)" gap={24} size={1} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
+    <div className="mt-3 overflow-x-auto rounded-card border border-border-default bg-glass-90">
+      <table className="w-full min-w-[520px] border-collapse text-left">
+        <caption className="sr-only">Text equivalent of dependency graph relationships</caption>
+        <thead><tr className="border-b border-border-strong"><th className="type-label-md px-3 py-2 text-text-muted">Source</th><th className="type-label-md px-3 py-2 text-text-muted">Relationship</th><th className="type-label-md px-3 py-2 text-text-muted">Target</th><th className="type-label-md px-3 py-2 text-text-muted">Status</th></tr></thead>
+        <tbody>{edges.length ? edges.map(edge => <tr key={edge.id} className="border-b border-border-faint last:border-0"><td className="type-body-sm px-3 py-2 text-ink">{nodes.find(node => node.id === edge.source)?.label ?? edge.source}</td><td className="type-body-sm px-3 py-2 text-text-secondary">{humanRelationshipLabel(edge.relationshipType)}</td><td className="type-body-sm px-3 py-2 text-ink">{nodes.find(node => node.id === edge.target)?.label ?? edge.target}</td><td className="type-label-sm px-3 py-2 text-text-muted">{edge.status}</td></tr>) : <tr><td colSpan={4} className="type-body-sm px-3 py-3 text-text-muted">No dependency relationships.</td></tr>}</tbody>
+      </table>
+    </div>
+    </>
   );
 }

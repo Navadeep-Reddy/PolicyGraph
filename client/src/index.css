@@ -1,33 +1,215 @@
 @import "tailwindcss";
 
-/* PolicyGraph visual language: DESIGN.md is the source of truth.
-   Warm canvas, white restrained panels, forest brand, amber change accent. */
+/* CareSync visual language: DESIGN.md is the canonical source of truth.
+   Clinical minimalism, one steel-blue accent, frosted-glass surfaces. */
+
+@theme {
+  /* Core palette (DESIGN.md §2.1) */
+  --color-ink: #06101e;
+  --color-accent: #36637c;
+  --color-text-secondary: #45474c;
+  --color-text-muted: #75777d;
+  --color-bg-base: #f5faff;
+  --color-surface-white: #ffffff;
+  --color-surface-1: #eaf5ff;
+  --color-surface-2: #def0ff;
+  --color-surface-3: #d2ecff;
+  --color-surface-4: #c9e6fc;
+  --color-selection-bg: #b6e3ff;
+  --color-selection-fg: #001e2c;
+  --color-accent-light: #c3e7ff;
+  --color-on-dark-muted: #7a8496;
+  --color-on-dark: #ffffff;
+
+  /* Status tokens (DESIGN.md §2.3). No red, orange, purple, or gold. */
+  --color-live: #10b981;
+  --color-positive-bg: #ecfdf5;
+  --color-positive-text: #047857;
+  --color-positive-border: #a7f3d0;
+  --color-positive-micro: #059669;
+
+  /* Alpha recipes (DESIGN.md §2.4) */
+  --color-border-faint: rgba(54, 99, 124, 0.1);
+  --color-border-default: rgba(54, 99, 124, 0.15);
+  --color-border-strong: rgba(54, 99, 124, 0.2);
+  --color-accent-wash: rgba(54, 99, 124, 0.1);
+  --color-grid-line: rgba(54, 99, 124, 0.08);
+  --color-nav-text: rgba(6, 16, 30, 0.75);
+  --color-glass-90: rgba(255, 255, 255, 0.9);
+  --color-glass-85: rgba(255, 255, 255, 0.85);
+  --color-glass-80: rgba(255, 255, 255, 0.8);
+  --color-glass-70: rgba(255, 255, 255, 0.7);
+  --color-glass-60: rgba(255, 255, 255, 0.6);
+  --color-panel-low-70: rgba(234, 245, 255, 0.7);
+  --color-panel-low-40: rgba(234, 245, 255, 0.4);
+  --color-row-hover: rgba(234, 245, 255, 0.5);
+
+  /* Typography stacks (DESIGN.md §3.1) */
+  --font-sans: "Plus Jakarta Sans", manrope, inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+
+  /* Radii (DESIGN.md §4.3) */
+  --radius-panel: 16px;
+  --radius-card: 8px;
+  --radius-inner: 4px;
+  --radius-action: 6px;
+  --radius-chip: 12px;
+  --radius-tab: 2px;
+
+  /* Shadows (DESIGN.md §4.5) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* Blur levels (DESIGN.md §4.5): cards 12px, data panels 16px, large panels 24px */
+  --blur-card: 12px;
+  --blur-panel: 16px;
+  --blur-feature: 24px;
+}
+
+/* Application and graph gradients (DESIGN.md §2.2) */
+.app-background {
+  background: linear-gradient(to bottom, #f5faff 0%, #eaf5ff 50%, #ddeef8 100%);
+}
+
+.graph-canvas {
+  background: linear-gradient(to bottom, #f0f7fc, #e4f1fb);
+}
+
+/* Reusable typography styles (DESIGN.md §3.2) */
+.type-page-title {
+  font-size: 36px;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+  font-weight: 300;
+}
+
+@media (max-width: 640px) {
+  .type-page-title {
+    font-size: 30px;
+    line-height: 38px;
+  }
+}
+
+.type-section-title {
+  font-size: 28px;
+  line-height: 36px;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+}
+
+.type-card-title {
+  font-size: 22px;
+  line-height: 30px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.type-item-title {
+  font-size: 18px;
+  line-height: 26px;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.type-body-lg {
+  font-size: 16px;
+  line-height: 26px;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.type-body-md {
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+.type-body-sm {
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+.type-label-md {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Brand wordmark (DESIGN.md §5.1): uppercase with 0.24em tracking.
+   Kept separate from type-label-md so the wordmark tracking is never
+   overridden by the label style's 0.14em tracking. */
+.type-wordmark {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-label-sm {
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-micro-mono {
+  font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
 
 body {
   margin: 0;
-  background-color: #f7f7f5;
-  color: #292524;
-  font-family: Inter, system-ui, -apple-system, sans-serif;
+  background: linear-gradient(to bottom, #f5faff 0%, #eaf5ff 50%, #ddeef8 100%);
+  background-attachment: fixed;
+  color: #06101e;
+  font-family: "Plus Jakarta Sans", manrope, inter, system-ui, sans-serif;
 }
 
-h1,
-h2,
-h3,
-nav,
-button {
-  font-family: Geist, Inter, system-ui, sans-serif;
+::selection {
+  background-color: #b6e3ff;
+  color: #001e2c;
 }
 
-/* Visible keyboard focus everywhere; never rely on color alone. */
+/* Visible keyboard focus. Fields use the DESIGN.md §6.2 treatment (1px ink
+   ring plus the existing border); all other interactive elements keep the
+   global ink outline so focus stays visible everywhere. */
 a:focus-visible,
-button:focus-visible,
-textarea:focus-visible,
-input:focus-visible {
-  outline: 2px solid #174c3c;
+button:focus-visible {
+  outline: 2px solid #06101e;
   outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: #06101e;
+  box-shadow: 0 0 0 1px #06101e;
 }
 
 /* Keep React Flow controls compact and neutral. */
 .xyflow__controls-button {
-  border-bottom: 1px solid #e6e7e4;
+  border-bottom: 1px solid rgba(54, 99, 124, 0.15);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
