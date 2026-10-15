@@ -56,6 +56,7 @@
     "implementer": {
       "mode": "subagent",
       "model": "openai/gpt-6-luna",
+      "variant": "medium",
       "description": "Fast CareSync execution agent. Implements precise bounded tasks from Master in client or server, preserves conventions, runs requested validation, and reports blockers without redesigning scope.",
       "permission": {
         "edit": "allow",

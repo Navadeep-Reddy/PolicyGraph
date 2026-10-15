@@ -4,11 +4,10 @@ import { ClauseExtractionService } from '../ai/clause-extraction.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { classifyClauseChanges, hashClauseText } from './change-classifier.js';
 import type {
-  ClauseDto,
   VersionClauseDto,
   PolicyDetailDto,
   PolicySummaryDto,
-  VersionChangesDto,
+  VersionClauseChangeDto,
   VersionDetailDto,
   VersionDto,
   CreatePolicyDto,
@@ -27,17 +26,6 @@ interface ClauseRow {
   category: string;
   position: number;
   textHash: string;
-}
-
-function toClauseDto(clause: ClauseRow): ClauseDto {
-  return {
-    id: clause.id,
-    policyVersionId: clause.policyVersionId,
-    stableKey: clause.stableKey,
-    text: clause.text,
-    position: clause.position,
-    textHash: clause.textHash,
-  };
 }
 
 function toVersionClauseDto(clause: ClauseRow): VersionClauseDto {
@@ -295,7 +283,7 @@ export class PoliciesService {
   // Stable-key comparison of the ACTIVE predecessor clauses against the
   // requested version's clauses. Requesting the ACTIVE version itself yields
   // all UNCHANGED; requesting the DRAFT yields the real diff.
-  async getChanges(versionId: string): Promise<VersionChangesDto> {
+  async getChanges(versionId: string, against?: string): Promise<VersionClauseChangeDto[]> {
     const version = await this.prisma.policyVersion.findUnique({
       where: { id: versionId },
       include: { clauses: true },
@@ -303,24 +291,26 @@ export class PoliciesService {
     if (!version) {
       throw new NotFoundException(`Policy version ${versionId} not found`);
     }
-    const activeVersion = await this.prisma.policyVersion.findFirst({
-      where: { policyId: version.policyId, status: 'ACTIVE' },
-      include: { clauses: true },
-    });
-    if (!activeVersion) {
-      throw new ContractHttpException('NO_BASE_VERSION', `Policy ${version.policyId} has no active version`, HttpStatus.CONFLICT);
+    const baseVersion = against === undefined
+      ? await this.prisma.policyVersion.findFirst({
+        where: { policyId: version.policyId, versionNumber: version.versionNumber - 1 },
+        include: { clauses: true },
+      })
+      : await this.prisma.policyVersion.findFirst({
+        where: { id: against, policyId: version.policyId },
+        include: { clauses: true },
+      });
+    if (!baseVersion) {
+      if (against !== undefined) throw new NotFoundException(`Base version ${against} not found in policy ${version.policyId}`);
+      throw new ContractHttpException('NO_BASE_VERSION', `Policy version ${versionId} has no previous version`, HttpStatus.CONFLICT);
     }
-    const changes = classifyClauseChanges(activeVersion.clauses, version.clauses);
-    return {
-      versionId: version.id,
-      policyId: version.policyId,
-      changes: changes.map((change) => ({
-        stableKey: change.stableKey,
-        changeType: change.changeType,
-        activeClause: change.predecessorClause ? toClauseDto(change.predecessorClause) : null,
-        draftClause: change.draftClause ? toClauseDto(change.draftClause) : null,
-      })),
-    };
+    const changes = classifyClauseChanges(baseVersion.clauses, version.clauses);
+    return changes.map((change) => ({
+      stableKey: change.stableKey,
+      changeType: change.changeType,
+      before: change.before ? toVersionClauseDto(change.before) : null,
+      after: change.after ? toVersionClauseDto(change.after) : null,
+    }));
   }
 
   private toVersion(version: {

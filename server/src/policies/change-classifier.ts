@@ -1,10 +1,3 @@
-// Pure clause change classification for the PolicyGraph one-day MVP.
-//
-// Implements MVP_SPEC.md section 6: predecessor and draft clauses are matched
-// by stableKey only (no embeddings or semantic matching). This module is
-// intentionally free of NestJS/Prisma imports so it can be unit-tested in
-// isolation and reused by any service.
-
 import { createHash } from 'node:crypto';
 
 export type ClauseChangeType = 'ADDED' | 'REMOVED' | 'MODIFIED' | 'UNCHANGED';
@@ -12,45 +5,46 @@ export type ClauseChangeType = 'ADDED' | 'REMOVED' | 'MODIFIED' | 'UNCHANGED';
 export interface ClassifiableClause {
   stableKey: string;
   textHash: string;
+  position: number;
 }
 
-export interface ClauseChange<Predecessor, Draft> {
+export interface ClauseChange<BaseClause, TargetClause> {
   stableKey: string;
   changeType: ClauseChangeType;
-  predecessorClause: Predecessor | null;
-  draftClause: Draft | null;
+  before: BaseClause | null;
+  after: TargetClause | null;
+  predecessorClause: BaseClause | null;
+  draftClause: TargetClause | null;
 }
 
-// Stable SHA-256 hash of clause text. Stored as Clause.textHash and compared
-// to detect MODIFIED clauses.
 export function hashClauseText(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-// Compares predecessor (ACTIVE) clauses against draft clauses by stableKey:
-// key only in draft -> ADDED, key only in predecessor -> REMOVED,
-// same key + different text hash -> MODIFIED, same key + same hash -> UNCHANGED.
-// Results are sorted by stableKey so API responses are deterministic.
-export function classifyClauseChanges<Predecessor extends ClassifiableClause, Draft extends ClassifiableClause>(
-  predecessorClauses: readonly Predecessor[],
-  draftClauses: readonly Draft[],
-): ClauseChange<Predecessor, Draft>[] {
-  const predecessorByKey = new Map(predecessorClauses.map((clause) => [clause.stableKey, clause]));
-  const draftByKey = new Map(draftClauses.map((clause) => [clause.stableKey, clause]));
-  const stableKeys = [...new Set([...predecessorByKey.keys(), ...draftByKey.keys()])].sort();
-  return stableKeys.map((stableKey) => {
-    const predecessorClause = predecessorByKey.get(stableKey) ?? null;
-    const draftClause = draftByKey.get(stableKey) ?? null;
+export function classifyClauseChanges<BaseClause extends ClassifiableClause, TargetClause extends ClassifiableClause>(
+  baseClauses: readonly BaseClause[],
+  targetClauses: readonly TargetClause[],
+): ClauseChange<BaseClause, TargetClause>[] {
+  const baseByKey = new Map(baseClauses.map((clause) => [clause.stableKey, clause]));
+  const targetByKey = new Map(targetClauses.map((clause) => [clause.stableKey, clause]));
+  const targetOrdered = [...targetClauses].sort((left, right) => left.position - right.position || left.stableKey.localeCompare(right.stableKey));
+  const removed = baseClauses
+    .filter((clause) => !targetByKey.has(clause.stableKey))
+    .sort((left, right) => left.position - right.position || left.stableKey.localeCompare(right.stableKey));
+  const orderedKeys = [...targetOrdered.map((clause) => clause.stableKey), ...removed.map((clause) => clause.stableKey)];
+  return orderedKeys.map((stableKey) => {
+    const before = baseByKey.get(stableKey) ?? null;
+    const after = targetByKey.get(stableKey) ?? null;
     let changeType: ClauseChangeType;
-    if (predecessorClause === null) {
+    if (before === null) {
       changeType = 'ADDED';
-    } else if (draftClause === null) {
+    } else if (after === null) {
       changeType = 'REMOVED';
-    } else if (predecessorClause.textHash !== draftClause.textHash) {
+    } else if (before.textHash !== after.textHash) {
       changeType = 'MODIFIED';
     } else {
       changeType = 'UNCHANGED';
     }
-    return { stableKey, changeType, predecessorClause, draftClause };
+    return { stableKey, changeType, before, after, predecessorClause: before, draftClause: after };
   });
 }

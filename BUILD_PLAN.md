@@ -46,8 +46,8 @@ scaffold
 
 ### Change detection
 
-- [ ] B-12 `[BACKEND]` Pure clause change classification with tests for `ADDED`, `REMOVED`, `MODIFIED`, `UNCHANGED`
-- [ ] B-13 `[BACKEND]` `GET /versions/:versionId/changes` (optional `against`)
+- [x] B-12 `[BACKEND]` Pure clause change classification with tests for `ADDED`, `REMOVED`, `MODIFIED`, `UNCHANGED`
+- [x] B-13 `[BACKEND]` `GET /versions/:versionId/changes` (optional `against`)
 
 ### Operational items
 

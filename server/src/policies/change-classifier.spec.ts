@@ -1,56 +1,50 @@
-import { classifyClauseChanges, hashClauseText } from './change-classifier.js';
+import { classifyClauseChanges } from './change-classifier.js';
 
 describe('classifyClauseChanges', () => {
-  it('marks same key with different text hash as MODIFIED', () => {
-    const changes = classifyClauseChanges(
-      [{ stableKey: 'TRAVEL-CLAIM-DEADLINE', textHash: hashClauseText('within 30 days') }],
-      [{ stableKey: 'TRAVEL-CLAIM-DEADLINE', textHash: hashClauseText('within 15 days') }],
-    );
-    expect(changes).toHaveLength(1);
-    expect(changes[0]?.changeType).toBe('MODIFIED');
+  const clause = (stableKey: string, position: number, textHash: string) => ({
+    id: `id-${stableKey}`,
+    versionId: 'version',
+    stableKey,
+    title: stableKey,
+    text: stableKey,
+    category: 'policy',
+    position,
+    textHash,
   });
 
-  it('marks same key with same text hash as UNCHANGED', () => {
-    const hash = hashClauseText('same text');
-    const changes = classifyClauseChanges(
-      [{ stableKey: 'K', textHash: hash }],
-      [{ stableKey: 'K', textHash: hash }],
-    );
-    expect(changes[0]?.changeType).toBe('UNCHANGED');
-  });
+  it('classifies added, removed, modified, and unchanged clauses', () => {
+    const base = [clause('keep', 0, 'same'), clause('edit', 1, 'old'), clause('remove', 2, 'x')];
+    const target = [clause('edit', 0, 'new'), clause('add', 1, 'y'), clause('keep', 2, 'same')];
 
-  it('marks draft-only keys as ADDED and predecessor-only keys as REMOVED', () => {
-    const changes = classifyClauseChanges(
-      [{ stableKey: 'OLD', textHash: 'a' }],
-      [{ stableKey: 'NEW', textHash: 'b' }],
-    );
-    expect(changes).toEqual([
-      { stableKey: 'NEW', changeType: 'ADDED', predecessorClause: null, draftClause: { stableKey: 'NEW', textHash: 'b' } },
-      { stableKey: 'OLD', changeType: 'REMOVED', predecessorClause: { stableKey: 'OLD', textHash: 'a' }, draftClause: null },
+    expect(classifyClauseChanges(base, target)).toEqual([
+      expect.objectContaining({ stableKey: 'edit', changeType: 'MODIFIED', before: base[1], after: target[0] }),
+      expect.objectContaining({ stableKey: 'add', changeType: 'ADDED', before: null, after: target[1] }),
+      expect.objectContaining({ stableKey: 'keep', changeType: 'UNCHANGED', before: base[0], after: target[2] }),
+      expect.objectContaining({ stableKey: 'remove', changeType: 'REMOVED', before: base[2], after: null }),
     ]);
   });
 
-  it('classifies the canonical 30-day to 15-day draft as MODIFIED', () => {
-    const changes = classifyClauseChanges(
-      [
-        {
-          stableKey: 'TRAVEL-CLAIM-DEADLINE',
-          textHash: hashClauseText(
-            'Employees must submit travel reimbursement claims within 30 days of travel completion.',
-          ),
-        },
-      ],
-      [
-        {
-          stableKey: 'TRAVEL-CLAIM-DEADLINE',
-          textHash: hashClauseText(
-            'Employees must submit travel reimbursement claims within 15 days of travel completion.',
-          ),
-        },
-      ],
-    );
-    expect(changes).toEqual([
-      expect.objectContaining({ stableKey: 'TRAVEL-CLAIM-DEADLINE', changeType: 'MODIFIED' }),
-    ]);
+  it('matches reordered clauses by stable key and orders by target position', () => {
+    const base = [clause('first', 0, 'a'), clause('second', 1, 'b')];
+    const target = [clause('second', 0, 'b'), clause('first', 1, 'a')];
+    expect(classifyClauseChanges(base, target).map(({ stableKey }) => stableKey)).toEqual(['second', 'first']);
+  });
+
+  it('places removed clauses by base position then stable key deterministically', () => {
+    const base = [clause('z', 2, 'x'), clause('b', 1, 'x'), clause('a', 1, 'x')];
+    const first = classifyClauseChanges(base, []);
+    expect(first.map(({ stableKey }) => stableKey)).toEqual(['a', 'b', 'z']);
+    expect(classifyClauseChanges([...base].reverse(), []).map(({ stableKey }) => stableKey)).toEqual(['a', 'b', 'z']);
+  });
+
+  it('does not mutate inputs and handles empty collections', () => {
+    const base = [clause('old', 0, 'x')];
+    const target = [clause('new', 0, 'y')];
+    const baseSnapshot = structuredClone(base);
+    const targetSnapshot = structuredClone(target);
+    expect(classifyClauseChanges([], [])).toEqual([]);
+    expect(classifyClauseChanges(base, target)).toHaveLength(2);
+    expect(base).toEqual(baseSnapshot);
+    expect(target).toEqual(targetSnapshot);
   });
 });

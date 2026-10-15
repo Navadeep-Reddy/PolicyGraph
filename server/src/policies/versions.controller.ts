@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
-import { CreateClauseDto, UpdateClauseDto } from './dto.js';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { CreateClauseDto, UpdateClauseDto, VersionChangesQueryDto } from './dto.js';
 import type { VersionDetailDto } from './dto.js';
 import { PoliciesService } from './policies.service.js';
 
@@ -39,7 +39,7 @@ export class VersionsController {
   }
 
   @Get(':versionId/changes')
-  getChanges(@Param('versionId') versionId: string) {
-    return this.policiesService.getChanges(versionId);
+  getChanges(@Param('versionId') versionId: string, @Query() query: VersionChangesQueryDto) {
+    return this.policiesService.getChanges(versionId, query.against);
   }
 }

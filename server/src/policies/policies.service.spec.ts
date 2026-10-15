@@ -1,6 +1,9 @@
 import { ConflictException } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { PoliciesService } from './policies.service.js';
+import { VersionChangesQueryDto } from './dto.js';
 
 describe('PoliciesService.updateClause', () => {
   function createService(version: { id: string; status: string } | null) {
@@ -144,5 +147,68 @@ describe('PoliciesService contract reads', () => {
     } as never);
     await expect(service.getPolicy('missing')).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.getVersion('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('PoliciesService.getChanges', () => {
+  const clause = (version: string, stableKey: string, position: number, textHash: string) => ({
+    id: `${version}-${stableKey}`, policyVersionId: version, stableKey, title: stableKey,
+    text: `${stableKey}-${version}`, category: 'policy', position, textHash,
+  });
+  const base = { id: 'base', policyId: 'p', versionNumber: 1, clauses: [
+    clause('base', 'modified', 0, 'old'), clause('base', 'removed', 1, 'gone'), clause('base', 'same', 2, 'same'),
+  ] };
+  const target = { id: 'target', policyId: 'p', versionNumber: 2, clauses: [
+    clause('target', 'added', 0, 'new'), clause('target', 'modified', 1, 'new'), clause('target', 'same', 2, 'same'),
+  ] };
+  it('compares explicitly against a version ID, preserving classifier order and exact clause DTOs', async () => {
+    const prisma = { policyVersion: { findUnique: async () => target, findFirst: async () => base } };
+    const changes = await new PoliciesService(prisma as never).getChanges('target', 'base');
+    expect(changes.map(({ stableKey, changeType }) => [stableKey, changeType])).toEqual([
+      ['added', 'ADDED'], ['modified', 'MODIFIED'], ['same', 'UNCHANGED'], ['removed', 'REMOVED'],
+    ]);
+    expect(changes[0]).toEqual({ stableKey: 'added', changeType: 'ADDED', before: null, after: {
+      id: 'target-added', versionId: 'target', stableKey: 'added', title: 'added', text: 'added-target', category: 'policy', position: 0,
+    } });
+    expect(changes[1].before).toMatchObject({ versionId: 'base', text: 'modified-base' });
+    expect(changes[1].after).toMatchObject({ versionId: 'target', text: 'modified-target' });
+    expect(changes[3]).toEqual({ stableKey: 'removed', changeType: 'REMOVED', before: {
+      id: 'base-removed', versionId: 'base', stableKey: 'removed', title: 'removed', text: 'removed-base', category: 'policy', position: 1,
+    }, after: null });
+    expect(JSON.stringify(changes)).not.toContain('textHash');
+  });
+  it('defaults to the immediately preceding version number', async () => {
+    let query: unknown;
+    const prisma = { policyVersion: { findUnique: async () => target, findFirst: async (args: unknown) => { query = args; return base; } } };
+    await new PoliciesService(prisma as never).getChanges('target');
+    expect(query).toEqual({ where: { policyId: 'p', versionNumber: 1 }, include: { clauses: true } });
+  });
+  it('scopes requested base IDs to the target policy', async () => {
+    let query: unknown;
+    const prisma = { policyVersion: { findUnique: async () => target, findFirst: async (args: unknown) => { query = args; return null; } } };
+    await expect(new PoliciesService(prisma as never).getChanges('target', 'foreign-base')).rejects.toBeInstanceOf(NotFoundException);
+    expect(query).toEqual({ where: { id: 'foreign-base', policyId: 'p' }, include: { clauses: true } });
+  });
+  it('returns not found for missing target or explicitly requested base', async () => {
+    const missingTarget = new PoliciesService({ policyVersion: { findUnique: async () => null } } as never);
+    await expect(missingTarget.getChanges('missing')).rejects.toBeInstanceOf(NotFoundException);
+    const missingBase = new PoliciesService({ policyVersion: { findUnique: async () => target, findFirst: async () => null } } as never);
+    await expect(missingBase.getChanges('target', 'missing-base')).rejects.toBeInstanceOf(NotFoundException);
+  });
+  it('returns NO_BASE_VERSION when no previous version exists', async () => {
+    const service = new PoliciesService({ policyVersion: { findUnique: async () => ({ ...target, versionNumber: 1 }), findFirst: async () => null } } as never);
+    await expect(service.getChanges('target')).rejects.toMatchObject({ code: 'NO_BASE_VERSION' });
+  });
+});
+
+describe('VersionChangesQueryDto', () => {
+  it.each(['', '   ', 2, false])('rejects invalid against value %s', async (against) => {
+    const query = plainToInstance(VersionChangesQueryDto, { against });
+    expect(await validate(query)).not.toHaveLength(0);
+  });
+  it('accepts a version ID string', async () => {
+    const query = plainToInstance(VersionChangesQueryDto, { against: 'base-version-id' });
+    expect(await validate(query)).toHaveLength(0);
+    expect(query.against).toBe('base-version-id');
   });
 });

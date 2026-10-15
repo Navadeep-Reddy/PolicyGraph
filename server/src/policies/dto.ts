@@ -48,6 +48,13 @@ export class CreateRevisionDto {
   text?: string;
 }
 
+export class VersionChangesQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/\S/)
+  against?: string;
+}
+
 export interface CreatePolicyResponseDto {
   policy: PolicyDetailDto;
   draft: VersionDetailDto;
@@ -111,8 +118,9 @@ export interface ClauseChangeDto {
   draftClause: ClauseDto | null;
 }
 
-export interface VersionChangesDto {
-  versionId: string;
-  policyId: string;
-  changes: ClauseChangeDto[];
+export interface VersionClauseChangeDto {
+  stableKey: string;
+  changeType: ClauseChangeType;
+  before: VersionClauseDto | null;
+  after: VersionClauseDto | null;
 }

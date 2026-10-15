@@ -2,6 +2,7 @@
 description: Fast execution agent for precise bounded CareSync implementation tasks.
 mode: subagent
 model: openai/gpt-6-luna
+variant: medium
 permission:
   edit: allow
   read: allow
