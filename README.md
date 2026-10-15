@@ -1,12 +1,14 @@
-# PolicyGraph
+# CareSync
 
-**Explainable Organisational Policy Change Impact Analysis**
+**Hospital Policy Change Impact Tracker**
 
-PolicyGraph answers:
+CareSync answers:
 
-> When this policy clause changes, what forms, procedures, or software rules might also need review?
+> When a hospital operational policy changes, which procedures, checklists, forms, instructions, and training materials should staff review?
 
-The system stores verified dependencies between policy clauses and operational artifacts. When a clause changes, the backend traverses those dependencies with BFS and returns explainable impact paths.
+The system uses AI to propose clauses and dependencies, a human to confirm them, and deterministic BFS traversal over the confirmed dependencies to produce explainable impact paths.
+
+CareSync is **not** a clinical system. It does not handle patient records, diagnosis, or treatment, and it does not guarantee compliance.
 
 ## Start here
 
@@ -14,45 +16,41 @@ Repository instructions are intentionally split by responsibility:
 
 | File | Purpose |
 |---|---|
-| `AGENTS.md` | Rules and operating context for Codex/coding agents |
-| `MVP_SPEC.md` | What today's MVP must do |
-| `BUILD_PLAN.md` | What order to build it in |
+| `AGENTS.md` | Rules and operating context for coding agents |
+| `SPEC.md` | What the product must do |
+| `BUILD_PLAN.md` | What order to build it in, tagged by Backend / Frontend / Integration; also the progress tracker |
+| `API_CONTRACT.md` | Endpoints and JSON shapes shared by frontend and backend |
+| `DESIGN.md` | Visual design language. Canonical for all UI work and never edited by agents |
 | `README.md` | Human entry point and setup |
 
-Agents should read `AGENTS.md` first. Product behavior must stay aligned with `MVP_SPEC.md`.
+Agents should read `AGENTS.md` first. Product behavior must stay aligned with `SPEC.md`.
 
-## One-day MVP
-
-Build one convincing vertical slice:
+## Core idea
 
 ```text
-policy version change
-→ changed clause
-→ verified dependency graph
-→ BFS impact analysis
-→ explainable impacted artifacts
-→ human review status
+paste policy text
+→ AI extracts clauses → human reviews/edits → publish version
+→ add operational items
+→ AI suggests dependencies → human approves/rejects (or adds manually)
+→ create revision → edit draft → compare versions
+→ BFS impact analysis over approved dependencies
+→ explainable impact report → human review status
 ```
 
-### Canonical demo
+The app starts **empty**. There is no seed data and no hardcoded demo. Every policy, clause, item, and dependency is entered through the app.
 
-Travel reimbursement deadline:
+### Example dependency shape
 
 ```text
-30 days → 15 days
+Visitor-hours clause
+├── GOVERNS    → Security desk procedure
+├── UPDATES    → Ward visitor checklist
+├── APPEARS_IN → Visitor information sheet
+└── via Security desk procedure
+    └── UPDATES → Staff training material
 ```
 
-Dependencies:
-
-```text
-Clause
-├── IMPLEMENTED_BY → Travel Claim Form
-├── REFERENCED_BY  → Finance Reimbursement Procedure
-└── via Travel Claim Form
-    └── CONSUMED_BY → Backend Deadline Validation Rule
-```
-
-The backend validation rule must therefore appear as an **indirect impact** with a complete path.
+The training material must appear as an **indirect impact** with a complete path.
 
 ## Stack
 
@@ -69,117 +67,102 @@ The backend validation rule must therefore appear as an **indirect impact** with
 - NestJS
 - TypeScript
 - Prisma
-- PostgreSQL
+- Hosted Supabase PostgreSQL (free tier). No Docker, no local database.
+- NVIDIA Nemotron through an OpenAI-compatible API (`openai` npm package)
 
-### Later / optional
-
-- Supabase Auth
-- Vercel frontend deployment
-- backend service/VM
-- Supabase-hosted PostgreSQL
-
-Authentication is part of the full project, but it is not allowed to block today's core demo.
+There is no authentication.
 
 ## Local setup
 
-Prerequisites: Node.js + npm, Docker Compose.
+Prerequisites: Node.js + npm, a free Supabase account, an NVIDIA API key.
 
-### 1. PostgreSQL
+### 1. Supabase (hosted)
 
-From the repository root:
-
-```bash
-docker compose up -d
-```
-
-This starts `policygraph-postgres` using the credentials in `docker-compose.yml`.
-The container always listens on `5432` internally; the **host** port defaults to `5432`:
+A coding agent can do this with the Supabase CLI:
 
 ```bash
-POSTGRES_HOST_PORT=5433 docker compose up -d
+npx supabase login
+npx supabase projects create caresync --org-id <org-id> --db-password <password> --region <region>
 ```
 
-Use the override only when something on your machine already occupies `5432`.
-Whatever host port you choose must match `DATABASE_URL` in `server/.env`
-(e.g. host port `5433` → `postgresql://policygraph:policygraph@localhost:5433/policygraph`).
+Then copy the connection strings (Supabase dashboard → **Connect**) into `server/.env`:
+
+- `DATABASE_URL`: pooled connection, used by the running app
+- `DIRECT_URL`: direct connection, used by Prisma migrations
+
+Free-tier projects pause after inactivity. Resume the project in the dashboard if the server cannot connect.
 
 ### 2. Server (API on `http://localhost:3000`)
 
 ```bash
 cd server
-cp .env.example .env   # then align DATABASE_URL with your host port above
+cp .env.example .env
 npm install
 npm run db:migrate
-npm run db:seed
 npm run start:dev
 ```
 
-`npm run db:seed` loads the canonical Travel Reimbursement demo data and is idempotent.
+`server/.env`:
 
-Reset the database (wipes data and re-applies migrations, then re-seed):
+```text
+DATABASE_URL=
+DIRECT_URL=
+NVIDIA_API_KEY=
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_MODEL=nvidia/nemotron-3.5-super-vl-120b-a12b
+```
+
+Reset the database (wipes all data and re-applies migrations):
 
 ```bash
 npm run db:reset
-npm run db:seed
 ```
 
 ### 3. Client (app on `http://localhost:5173`)
 
 ```bash
 cd client
-cp .env.example .env   # VITE_API_URL="http://localhost:3000"
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-### Canonical browser demo path
+`client/.env`:
 
-1. Open `http://localhost:5173`.
-2. Open **Travel Reimbursement Policy**.
-3. Compare active (`30 days`) vs draft (`15 days`) and confirm the clause reads `MODIFIED`.
-4. Click **Run impact analysis**.
-5. Confirm the affected artifacts (Travel Claim Form, Finance Reimbursement Procedure,
-   Backend Deadline Validation Rule) each show a complete dependency path.
-6. Mark a result resolved, refresh, and confirm it stays resolved.
+```text
+VITE_API_URL=http://localhost:3000
+VITE_USE_MOCKS=false
+```
+
+`VITE_USE_MOCKS=true` is a development aid for building the UI before the backend is ready. See `AGENTS.md`.
+
+### Browser walkthrough (you enter all data)
+
+1. Open `http://localhost:5173` and click **New policy**.
+2. Paste policy text, for example a visitor policy that says visitors are permitted until 8:00 PM.
+3. Review and edit the AI-extracted clauses, then **Publish version**.
+4. Open **Operational items** and add items (for example a security desk procedure, a ward checklist, a visitor information sheet).
+5. Open the policy's **Dependencies** screen, click **Suggest dependencies**, then approve, edit, or reject each suggestion. Add any missed dependency manually.
+6. Click **Create revision**, change the clause to 6:00 PM, and open **Compare**.
+7. Confirm the clause reads `MODIFIED`, then click **Run impact analysis**.
+8. Inspect each affected item's dependency path.
+9. Mark a result resolved, refresh, and confirm it stays resolved.
 
 ## Do not overbuild
 
-Today's MVP does **not** require:
+CareSync does **not** include:
 
-- AI suggestions
-- complex RBAC screens
+- patient records, clinical diagnosis, or treatment recommendations
+- login or roles
+- integration with hospital systems
+- OCR or PDF/DOCX extraction
+- email or notifications
 - approval workflows
-- scheduled activation
-- acknowledgements
-- conflict scanning
-- notifications
-- exports
-- Neo4j
-- semantic search
-- PDF/DOCX ingestion
-
-Those belong to the larger PolicyGraph project and can be added after the core value proposition works.
+- report export
+- graph or vector databases
+- AI fallback responses
+- seeded demo data
 
 ## Demo success
 
-The MVP is ready when you can perform this entirely in the browser:
-
-1. Open **Travel Reimbursement Policy**.
-2. Compare the active `30 day` clause with the draft `15 day` clause.
-3. See `MODIFIED`.
-4. Click **Run impact analysis**.
-5. See:
-   - Travel Claim Form
-   - Finance Reimbursement Procedure
-   - Backend Deadline Validation Rule
-6. Select the backend rule.
-7. See:
-
-```text
-TRAVEL-CLAIM-DEADLINE
-→ Travel Claim Form
-→ Backend Deadline Validation Rule
-```
-
-8. Mark an impact resolved.
-9. Refresh and confirm it remains resolved.
+You can perform the full walkthrough above entirely in the browser, starting from an empty database, with no manual database editing.
