@@ -1,9 +1,7 @@
 import { runImpactBfs, type TraversalEdge } from './bfs.js';
 
-const RUN_AT = new Date('2026-09-04T00:00:00Z');
-
 function approvedEdge(id: string, sourceNodeId: string, targetNodeId: string): TraversalEdge {
-  return { id, sourceNodeId, targetNodeId, status: 'APPROVED', validFrom: null, validTo: null };
+  return { id, sourceNodeId, targetNodeId, status: 'APPROVED' };
 }
 
 describe('runImpactBfs', () => {
@@ -12,7 +10,6 @@ describe('runImpactBfs', () => {
       ['clause-1'],
       [approvedEdge('e1', 'clause-1', 'artifact-form')],
       new Set(['artifact-form']),
-      RUN_AT,
     );
     expect(results).toEqual([
       {
@@ -32,7 +29,6 @@ describe('runImpactBfs', () => {
         approvedEdge('e2', 'artifact-form', 'artifact-rule'),
       ],
       new Set(['artifact-form', 'artifact-rule']),
-      RUN_AT,
     );
     const rule = results.find((result) => result.artifactId === 'artifact-rule');
     expect(rule).toEqual({
@@ -53,7 +49,6 @@ describe('runImpactBfs', () => {
         approvedEdge('e4', 'artifact-b', 'clause-1'),
       ],
       new Set(['artifact-a', 'artifact-b']),
-      RUN_AT,
     );
     expect(results).toHaveLength(2);
     expect(results.find((result) => result.artifactId === 'artifact-b')?.distance).toBe(2);
@@ -68,31 +63,9 @@ describe('runImpactBfs', () => {
           sourceNodeId: 'clause-1',
           targetNodeId: 'artifact-form',
           status: 'PROPOSED',
-          validFrom: null,
-          validTo: null,
         },
       ],
       new Set(['artifact-form']),
-      RUN_AT,
-    );
-    expect(results).toEqual([]);
-  });
-
-  it('ignores edges outside their validity window', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [
-        {
-          id: 'e1',
-          sourceNodeId: 'clause-1',
-          targetNodeId: 'artifact-form',
-          status: 'APPROVED',
-          validFrom: null,
-          validTo: new Date('2020-01-01T00:00:00Z'),
-        },
-      ],
-      new Set(['artifact-form']),
-      RUN_AT,
     );
     expect(results).toEqual([]);
   });
@@ -102,7 +75,6 @@ describe('runImpactBfs', () => {
       ['clause-1'],
       [approvedEdge('e1', 'clause-1', 'artifact-form')],
       new Set(['artifact-form', 'artifact-orphan']),
-      RUN_AT,
     );
     expect(results).toHaveLength(1);
     expect(results[0]?.artifactId).toBe('artifact-form');
@@ -117,7 +89,6 @@ describe('runImpactBfs', () => {
         approvedEdge('e2', 'artifact-form', 'artifact-rule'),
       ],
       new Set(['artifact-form', 'artifact-rule']),
-      RUN_AT,
     );
     const rules = results.filter((result) => result.artifactId === 'artifact-rule');
     expect(rules).toHaveLength(1);

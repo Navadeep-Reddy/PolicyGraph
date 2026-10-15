@@ -20,9 +20,9 @@ export class UpdateReviewDto {
 export interface ImpactResultArtifactDto {
   id: string;
   name: string;
-  type: 'FORM' | 'PROCEDURE' | 'SOFTWARE_RULE';
+  type: 'FORM' | 'PROCEDURE' | 'CHECKLIST' | 'TRAINING_MATERIAL' | 'DEPARTMENT_INSTRUCTION' | 'INFORMATION_SHEET';
+  department: string;
   description: string | null;
-  criticality: number;
 }
 
 export interface ImpactResultDto {

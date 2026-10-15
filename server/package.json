@@ -22,7 +22,6 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {

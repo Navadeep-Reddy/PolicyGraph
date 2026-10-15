@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? (() => {
+      throw new Error("DIRECT_URL is required for Prisma migrations");
+    })(),
   },
 });

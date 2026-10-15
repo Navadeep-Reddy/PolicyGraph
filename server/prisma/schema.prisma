@@ -1,10 +1,3 @@
-// PolicyGraph one-day MVP schema.
-//
-// Only the seven models required by MVP_SPEC.md section 5 exist here.
-// Dependency edges are polymorphic: a source may be a CLAUSE or an
-// ARTIFACT id, while a target is always an ARTIFACT id, so edges carry
-// node ids plus node-type enums instead of foreign keys.
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -15,14 +8,18 @@ datasource db {
 }
 
 enum PolicyVersionStatus {
-  ACTIVE
   DRAFT
+  ACTIVE
+  ARCHIVED
 }
 
 enum ArtifactType {
   FORM
   PROCEDURE
-  SOFTWARE_RULE
+  CHECKLIST
+  TRAINING_MATERIAL
+  DEPARTMENT_INSTRUCTION
+  INFORMATION_SHEET
 }
 
 enum DependencyNodeType {
@@ -31,15 +28,15 @@ enum DependencyNodeType {
 }
 
 enum EdgeRelationship {
-  IMPLEMENTED_BY
-  REFERENCED_BY
-  CONSUMED_BY
+  GOVERNS
+  UPDATES
+  APPEARS_IN
 }
 
 enum EdgeStatus {
-  APPROVED
   PROPOSED
-  RETIRED
+  APPROVED
+  REJECTED
 }
 
 enum ReviewStatus {
@@ -49,14 +46,19 @@ enum ReviewStatus {
   RESOLVED
 }
 
+enum DependencyOrigin {
+  AI
+  MANUAL
+}
+
 model Policy {
-  id             String          @id @default(cuid())
-  organizationId String
+  id             String           @id @default(cuid())
   title          String
   description    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   versions       PolicyVersion[]
+  dependencyEdges DependencyEdge[]
 }
 
 model PolicyVersion {
@@ -65,10 +67,11 @@ model PolicyVersion {
   policy        Policy              @relation(fields: [policyId], references: [id], onDelete: Cascade)
   versionNumber Int
   status        PolicyVersionStatus
-  effectiveDate DateTime?
+  publishedAt   DateTime?
   createdAt     DateTime            @default(now())
   clauses       Clause[]
-  impactRuns    ImpactRun[]
+  targetImpactRuns ImpactRun[]      @relation("TargetVersion")
+  baseImpactRuns ImpactRun[]        @relation("BaseVersion")
 
   @@unique([policyId, versionNumber])
 }
@@ -78,7 +81,9 @@ model Clause {
   policyVersionId String
   policyVersion   PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
   stableKey       String
+  title           String
   text            String
+  category        String
   position        Int
   textHash        String
 
@@ -86,53 +91,60 @@ model Clause {
 }
 
 model Artifact {
-  id             String         @id @default(cuid())
-  organizationId String
-  name           String
-  type           ArtifactType
-  description    String?
-  // Operational criticality, 1 (low) to 5 (critical).
-  criticality    Int
-  impactResults  ImpactResult[]
+  id            String           @id @default(cuid())
+  name          String
+  type          ArtifactType
+  department    String
+  description   String?
+  content       String?
+  impactResults ImpactResult[]
+  sourceEdges   DependencyEdge[] @relation("SourceArtifact")
+  targetEdges   DependencyEdge[] @relation("TargetArtifact")
 }
 
 model DependencyEdge {
-  id               String             @id @default(cuid())
-  organizationId   String
-  sourceNodeId     String
-  sourceNodeType   DependencyNodeType
-  targetNodeId     String
-  targetNodeType   DependencyNodeType
-  relationshipType EdgeRelationship
-  status           EdgeStatus
-  rationale        String?
-  validFrom        DateTime?
-  validTo          DateTime?
+  id                String             @id @default(cuid())
+  policyId          String
+  policy            Policy             @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  sourceType        DependencyNodeType
+  sourceClauseKey   String?
+  sourceArtifactId  String?
+  sourceArtifact    Artifact?          @relation("SourceArtifact", fields: [sourceArtifactId], references: [id], onDelete: Cascade)
+  targetArtifactId  String
+  targetArtifact    Artifact           @relation("TargetArtifact", fields: [targetArtifactId], references: [id], onDelete: Cascade)
+  relationshipType  EdgeRelationship
+  status            EdgeStatus
+  origin            DependencyOrigin
+  rationale         String?
 
-  @@index([sourceNodeId, status])
-  @@index([targetNodeId])
+  @@index([policyId, status])
+  @@index([sourceType, sourceClauseKey])
+  @@index([sourceArtifactId])
+  @@index([targetArtifactId])
 }
 
 model ImpactRun {
-  id              String         @id @default(cuid())
+  id              String        @id @default(cuid())
   policyVersionId String
-  policyVersion   PolicyVersion  @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
-  createdAt       DateTime       @default(now())
+  policyVersion   PolicyVersion @relation("TargetVersion", fields: [policyVersionId], references: [id], onDelete: Cascade)
+  baseVersionId   String
+  baseVersion     PolicyVersion @relation("BaseVersion", fields: [baseVersionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
   results         ImpactResult[]
 }
 
 model ImpactResult {
-  id            String       @id @default(cuid())
-  impactRunId   String
-  impactRun     ImpactRun    @relation(fields: [impactRunId], references: [id], onDelete: Cascade)
-  artifactId    String
-  artifact      Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
-  distance      Int
-  // Ordered nodes and edges for one complete dependency path (MVP: stored inline).
-  pathJson      Json
-  reason        String
-  reviewStatus  ReviewStatus @default(PROPOSED)
-  reviewComment String?
+  id               String       @id @default(cuid())
+  impactRunId      String
+  impactRun        ImpactRun    @relation(fields: [impactRunId], references: [id], onDelete: Cascade)
+  changedClauseKey String
+  artifactId       String
+  artifact         Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  distance         Int
+  pathJson         Json
+  reason           String
+  reviewStatus     ReviewStatus @default(PROPOSED)
+  reviewComment    String?
 
-  @@unique([impactRunId, artifactId])
+  @@unique([impactRunId, changedClauseKey, artifactId])
 }

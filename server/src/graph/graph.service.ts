@@ -26,24 +26,22 @@ export class GraphService {
     if (!activeVersion) {
       throw new NotFoundException(`Policy ${policyId} has no active version`);
     }
-    const artifacts = await this.prisma.artifact.findMany({
-      where: { organizationId: policy.organizationId },
-      orderBy: { name: 'asc' },
-    });
     const edges = await this.prisma.dependencyEdge.findMany({
-      where: { organizationId: policy.organizationId },
-      orderBy: [{ sourceNodeId: 'asc' }, { targetNodeId: 'asc' }],
+      where: { policyId },
+      orderBy: [{ sourceType: 'asc' }, { sourceClauseKey: 'asc' }, { sourceArtifactId: 'asc' }, { targetArtifactId: 'asc' }],
     });
+    const artifactIds = [...new Set(edges.flatMap((edge) => [edge.sourceArtifactId, edge.targetArtifactId]).filter((id): id is string => id !== null))];
+    const artifacts = await this.prisma.artifact.findMany({ where: { id: { in: artifactIds } }, orderBy: { name: 'asc' } });
     return {
       policyId: policy.id,
       nodes: [
         ...activeVersion.clauses.map((clause) => ({
-          id: clause.id,
+          id: `clause:${clause.stableKey}`,
           nodeType: 'CLAUSE' as const,
           name: clause.stableKey,
         })),
         ...artifacts.map((artifact) => ({
-          id: artifact.id,
+          id: `artifact:${artifact.id}`,
           nodeType: 'ARTIFACT' as const,
           name: artifact.name,
           artifactType: artifact.type,
@@ -52,8 +50,8 @@ export class GraphService {
       ],
       edges: edges.map((edge) => ({
         id: edge.id,
-        sourceNodeId: edge.sourceNodeId,
-        targetNodeId: edge.targetNodeId,
+        sourceNodeId: edge.sourceType === 'CLAUSE' ? `clause:${edge.sourceClauseKey}` : `artifact:${edge.sourceArtifactId}`,
+        targetNodeId: `artifact:${edge.targetArtifactId}`,
         relationshipType: edge.relationshipType,
         relationshipLabel: relationshipLabel(edge.relationshipType),
         status: edge.status,

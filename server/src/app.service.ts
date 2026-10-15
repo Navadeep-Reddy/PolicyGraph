@@ -6,7 +6,7 @@ export class AppService {
     return 'Hello World!';
   }
 
-  getHealth(): { status: string; timestamp: string } {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  getHealth(): { status: string } {
+    return { status: 'ok' };
   }
 }

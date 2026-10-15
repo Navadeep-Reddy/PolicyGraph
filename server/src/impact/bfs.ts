@@ -3,7 +3,7 @@
 // Implements MVP_SPEC.md section 7 as backend domain logic with no NestJS,
 // HTTP, or Prisma dependencies:
 // - outgoing traversal only (edges are followed source -> target)
-// - only eligible edges (APPROVED status plus optional validity window)
+// - only APPROVED edges
 // - cycle-safe via a visited set
 // - first visit wins, which yields the shortest unweighted path under BFS
 // - one result per artifact, holding a single complete ordered path
@@ -13,8 +13,6 @@ export interface TraversalEdge {
   sourceNodeId: string;
   targetNodeId: string;
   status: string;
-  validFrom: Date | string | null;
-  validTo: Date | string | null;
 }
 
 export interface ImpactPath {
@@ -24,19 +22,9 @@ export interface ImpactPath {
   pathEdgeIds: string[];
 }
 
-// An edge participates in official impact analysis only when it is APPROVED
-// and, when validity dates exist, valid at the run time.
-export function isEdgeEligible(edge: TraversalEdge, runAt: Date): boolean {
-  if (edge.status !== 'APPROVED') {
-    return false;
-  }
-  if (edge.validFrom !== null && runAt < new Date(edge.validFrom)) {
-    return false;
-  }
-  if (edge.validTo !== null && runAt > new Date(edge.validTo)) {
-    return false;
-  }
-  return true;
+// An edge participates in impact analysis only when it is APPROVED.
+export function isEdgeEligible(edge: TraversalEdge): boolean {
+  return edge.status === 'APPROVED';
 }
 
 // Multi-source BFS starting from the changed (ACTIVE predecessor) clause
@@ -47,7 +35,6 @@ export function runImpactBfs(
   startNodeIds: readonly string[],
   edges: readonly TraversalEdge[],
   artifactIds: ReadonlySet<string>,
-  runAt: Date,
 ): ImpactPath[] {
   const outgoingBySource = new Map<string, TraversalEdge[]>();
   for (const edge of edges) {
@@ -70,7 +57,7 @@ export function runImpactBfs(
       break;
     }
     for (const edge of outgoingBySource.get(current.nodeId) ?? []) {
-      if (!isEdgeEligible(edge, runAt)) {
+      if (!isEdgeEligible(edge)) {
         continue;
       }
       const nextNodeId = edge.targetNodeId;
@@ -80,9 +67,12 @@ export function runImpactBfs(
       visited.add(nextNodeId);
       const pathNodeIds = [...current.pathNodeIds, nextNodeId];
       const pathEdgeIds = [...current.pathEdgeIds, edge.id];
-      if (artifactIds.has(nextNodeId) && !results.has(nextNodeId)) {
+      const artifactId = nextNodeId.startsWith('artifact:')
+        ? nextNodeId.slice('artifact:'.length)
+        : nextNodeId;
+      if ((artifactIds.has(nextNodeId) || artifactIds.has(artifactId)) && !results.has(nextNodeId)) {
         results.set(nextNodeId, {
-          artifactId: nextNodeId,
+          artifactId,
           distance: pathEdgeIds.length,
           pathNodeIds,
           pathEdgeIds,

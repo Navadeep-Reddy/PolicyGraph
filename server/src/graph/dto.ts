@@ -7,7 +7,7 @@ export interface GraphNodeDto {
   id: string;
   nodeType: 'CLAUSE' | 'ARTIFACT';
   name: string;
-  artifactType?: 'FORM' | 'PROCEDURE' | 'SOFTWARE_RULE';
+  artifactType?: 'FORM' | 'PROCEDURE' | 'CHECKLIST' | 'TRAINING_MATERIAL' | 'DEPARTMENT_INSTRUCTION' | 'INFORMATION_SHEET';
   description?: string | null;
 }
 
@@ -28,9 +28,9 @@ export interface PolicyGraphDto {
 }
 
 export const RELATIONSHIP_LABELS: Record<string, string> = {
-  IMPLEMENTED_BY: 'implemented by',
-  REFERENCED_BY: 'referenced by',
-  CONSUMED_BY: 'consumed by',
+  GOVERNS: 'governs',
+  UPDATES: 'updates',
+  APPEARS_IN: 'appears in',
 };
 
 export function relationshipLabel(relationshipType: string): string {

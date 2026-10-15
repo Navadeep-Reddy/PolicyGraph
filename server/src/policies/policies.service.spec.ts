@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { PoliciesService } from './policies.service.js';
 
 describe('PoliciesService.updateClause', () => {
@@ -32,7 +32,7 @@ describe('PoliciesService.updateClause', () => {
   it('rejects edits when the owning version is not DRAFT', async () => {
     const service = createService({ id: 'version-1', status: 'ACTIVE' });
     await expect(service.updateClause('version-1', 'clause-1', 'new text')).rejects.toBeInstanceOf(
-      BadRequestException,
+      ConflictException,
     );
   });
 

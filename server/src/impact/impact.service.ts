@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { ContractHttpException } from '../common/contract-http.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { classifyClauseChanges } from '../policies/change-classifier.js';
@@ -37,7 +38,7 @@ export class ImpactService {
       include: { clauses: true },
     });
     if (!activeVersion) {
-      throw new NotFoundException(`Policy ${version.policyId} has no active version`);
+      throw new ContractHttpException('NO_BASE_VERSION', `Policy ${version.policyId} has no active version`, HttpStatus.CONFLICT);
     }
 
     const changes = classifyClauseChanges(activeVersion.clauses, version.clauses);
@@ -61,38 +62,41 @@ export class ImpactService {
       );
     }
 
-    const runAt = new Date();
     const edges = await this.prisma.dependencyEdge.findMany({
-      where: { organizationId: version.policy.organizationId },
+      where: { policyId: version.policyId },
     });
+    const artifactIds = [...new Set(edges.flatMap((edge) => [edge.sourceArtifactId, edge.targetArtifactId]).filter((id): id is string => id !== null))];
     const artifacts = await this.prisma.artifact.findMany({
-      where: { organizationId: version.policy.organizationId },
+      where: { id: { in: artifactIds } },
     });
     const artifactsById = new Map(artifacts.map((artifact) => [artifact.id, artifact]));
     const edgesById = new Map(edges.map((edge) => [edge.id, edge]));
 
-    const startNodeIds = traversableChanges.map(
-      (change) => activeByStableKey.get(change.stableKey)?.id as string,
-    );
+    const startNodeIds = traversableChanges.map((change) => `clause:${change.stableKey}`);
+    const traversalEdges = edges.map((edge) => ({
+      id: edge.id,
+      sourceNodeId: edge.sourceType === 'CLAUSE' ? `clause:${edge.sourceClauseKey}` : `artifact:${edge.sourceArtifactId}`,
+      targetNodeId: `artifact:${edge.targetArtifactId}`,
+      status: edge.status,
+    }));
     const paths = runImpactBfs(
       startNodeIds,
-      edges,
-      new Set(artifactsById.keys()),
-      runAt,
+      traversalEdges,
+      new Set([...artifactsById.keys()].map((id) => `artifact:${id}`)),
     );
     const orderedPaths = this.sortPaths(paths, artifactsById);
 
     const originByStartNodeId = new Map(
       traversableChanges.map((change) => [
-        activeByStableKey.get(change.stableKey)?.id as string,
+        `clause:${change.stableKey}`,
         change,
       ]),
     );
-    const clausesById = new Map(activeVersion.clauses.map((clause) => [clause.id, clause]));
+    const clausesById = new Map(activeVersion.clauses.map((clause) => [`clause:${clause.stableKey}`, clause]));
 
     const created = await this.prisma.$transaction(async (transaction) => {
       const run = await transaction.impactRun.create({
-        data: { policyVersionId: version.id },
+        data: { policyVersionId: version.id, baseVersionId: activeVersion.id },
       });
       if (orderedPaths.length > 0) {
         await transaction.impactResult.createMany({
@@ -115,6 +119,7 @@ export class ImpactService {
             ) as Prisma.InputJsonValue;
             return {
               impactRunId: run.id,
+              changedClauseKey: origin.stableKey,
               artifactId: path.artifactId,
               distance: path.distance,
               pathJson,
@@ -236,7 +241,7 @@ export class ImpactService {
     clausesById: Map<string, { stableKey: string }>,
     artifactsById: Map<
       string,
-      { id: string; name: string; type: 'FORM' | 'PROCEDURE' | 'SOFTWARE_RULE'; description: string | null }
+      { id: string; name: string; type: 'FORM' | 'PROCEDURE' | 'CHECKLIST' | 'TRAINING_MATERIAL' | 'DEPARTMENT_INSTRUCTION' | 'INFORMATION_SHEET'; description: string | null }
     >,
   ): GraphNodeDto[] {
     return pathNodeIds.map((nodeId) => {
@@ -245,12 +250,12 @@ export class ImpactService {
         // Clause display name is the stableKey (e.g. TRAVEL-CLAIM-DEADLINE).
         return { id: nodeId, nodeType: 'CLAUSE' as const, name: clause.stableKey };
       }
-      const artifact = artifactsById.get(nodeId);
+      const artifact = artifactsById.get(nodeId.slice('artifact:'.length));
       if (!artifact) {
         throw new BadRequestException(`Impact path references unknown node ${nodeId}`);
       }
       return {
-        id: artifact.id,
+        id: `artifact:${artifact.id}`,
         nodeType: 'ARTIFACT' as const,
         name: artifact.name,
         artifactType: artifact.type,
@@ -261,8 +266,10 @@ export class ImpactService {
 
   private toGraphEdgeDto(edge: {
     id: string;
-    sourceNodeId: string;
-    targetNodeId: string;
+    sourceType: string;
+    sourceClauseKey: string | null;
+    sourceArtifactId: string | null;
+    targetArtifactId: string;
     relationshipType: string;
     status: string;
     rationale: string | null;
@@ -272,8 +279,8 @@ export class ImpactService {
     }
     return {
       id: edge.id,
-      sourceNodeId: edge.sourceNodeId,
-      targetNodeId: edge.targetNodeId,
+      sourceNodeId: edge.sourceType === 'CLAUSE' ? `clause:${edge.sourceClauseKey}` : `artifact:${edge.sourceArtifactId}`,
+      targetNodeId: `artifact:${edge.targetArtifactId}`,
       relationshipType: edge.relationshipType,
       relationshipLabel: relationshipLabel(edge.relationshipType),
       status: edge.status,
@@ -291,9 +298,9 @@ export class ImpactService {
     artifact: {
       id: string;
       name: string;
-      type: 'FORM' | 'PROCEDURE' | 'SOFTWARE_RULE';
+      type: 'FORM' | 'PROCEDURE' | 'CHECKLIST' | 'TRAINING_MATERIAL' | 'DEPARTMENT_INSTRUCTION' | 'INFORMATION_SHEET';
       description: string | null;
-      criticality: number;
+      department: string;
     };
   }): ImpactResultDto {
     const path = result.pathJson as unknown as StoredPath;
@@ -303,8 +310,8 @@ export class ImpactService {
         id: result.artifact.id,
         name: result.artifact.name,
         type: result.artifact.type,
+        department: result.artifact.department,
         description: result.artifact.description,
-        criticality: result.artifact.criticality,
       },
       distance: result.distance,
       reason: result.reason,

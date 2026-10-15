@@ -22,8 +22,8 @@ export interface VersionSummaryDto {
   id: string;
   policyId: string;
   versionNumber: number;
-  status: 'ACTIVE' | 'DRAFT';
-  effectiveDate: string | null;
+  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
+  publishedAt: string | null;
   createdAt: string;
   clauseCount: number;
 }
@@ -32,8 +32,8 @@ export interface VersionWithClausesDto {
   id: string;
   policyId: string;
   versionNumber: number;
-  status: 'ACTIVE' | 'DRAFT';
-  effectiveDate: string | null;
+  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
+  publishedAt: string | null;
   createdAt: string;
   clauses: ClauseDto[];
 }
@@ -42,7 +42,6 @@ export interface VersionWithClausesDto {
 // client renders without follow-up requests.
 export interface PolicyListItemDto {
   id: string;
-  organizationId: string;
   title: string;
   description: string | null;
   activeVersion: VersionSummaryDto | null;
@@ -60,7 +59,6 @@ export interface PolicyListItemDto {
 // clauses for side-by-side display and editing.
 export interface PolicyDetailDto {
   id: string;
-  organizationId: string;
   title: string;
   description: string | null;
   activeVersion: VersionWithClausesDto | null;

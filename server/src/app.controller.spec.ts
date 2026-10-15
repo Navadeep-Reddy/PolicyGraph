@@ -19,4 +19,8 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
   });
+
+  it('returns the exact health contract response', () => {
+    expect(appController.getHealth()).toEqual({ status: 'ok' });
+  });
 });

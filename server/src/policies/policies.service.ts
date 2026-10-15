@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { ContractHttpException } from '../common/contract-http.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { classifyClauseChanges, hashClauseText } from './change-classifier.js';
 import type {
@@ -35,7 +36,7 @@ export class PoliciesService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Dashboard data: one row per policy with version summaries, the approved
-  // dependency count for the policy organization, and the latest impact run
+  // dependency count for the policy, and the latest impact run
   // (if any) across all versions of the policy.
   async listPolicies(): Promise<PolicyListItemDto[]> {
     const policies = await this.prisma.policy.findMany({
@@ -53,7 +54,7 @@ export class PoliciesService {
         const draftVersion = policy.versions.find((version) => version.status === 'DRAFT') ?? null;
         const [approvedDependencyCount, latestImpactRun] = await Promise.all([
           this.prisma.dependencyEdge.count({
-            where: { organizationId: policy.organizationId, status: 'APPROVED' },
+            where: { policyId: policy.id, status: 'APPROVED' },
           }),
           this.prisma.impactRun.findFirst({
             where: { policyVersion: { policyId: policy.id } },
@@ -63,7 +64,6 @@ export class PoliciesService {
         ]);
         return {
           id: policy.id,
-          organizationId: policy.organizationId,
           title: policy.title,
           description: policy.description,
           activeVersion: activeVersion ? this.toVersionSummary(activeVersion) : null,
@@ -95,7 +95,6 @@ export class PoliciesService {
     const draftVersion = policy.versions.find((version) => version.status === 'DRAFT') ?? null;
     return {
       id: policy.id,
-      organizationId: policy.organizationId,
       title: policy.title,
       description: policy.description,
       activeVersion: activeVersion ? this.toVersionWithClauses(activeVersion) : null,
@@ -127,7 +126,7 @@ export class PoliciesService {
       throw new NotFoundException(`Policy version ${versionId} not found`);
     }
     if (version.status !== 'DRAFT') {
-      throw new BadRequestException(`Policy version ${versionId} is not DRAFT`);
+      throw new ConflictException(`Policy version ${versionId} is not DRAFT`);
     }
     const clause = await this.prisma.clause.findFirst({
       where: { id: clauseId, policyVersionId: versionId },
@@ -158,7 +157,7 @@ export class PoliciesService {
       include: { clauses: true },
     });
     if (!activeVersion) {
-      throw new NotFoundException(`Policy ${version.policyId} has no active version`);
+      throw new ContractHttpException('NO_BASE_VERSION', `Policy ${version.policyId} has no active version`, HttpStatus.CONFLICT);
     }
     const changes = classifyClauseChanges(activeVersion.clauses, version.clauses);
     return {
@@ -177,8 +176,8 @@ export class PoliciesService {
     id: string;
     policyId: string;
     versionNumber: number;
-    status: 'ACTIVE' | 'DRAFT';
-    effectiveDate: Date | null;
+    status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
+    publishedAt: Date | null;
     createdAt: Date;
     _count: { clauses: number };
   }): VersionSummaryDto {
@@ -187,7 +186,7 @@ export class PoliciesService {
       policyId: version.policyId,
       versionNumber: version.versionNumber,
       status: version.status,
-      effectiveDate: version.effectiveDate?.toISOString() ?? null,
+      publishedAt: version.publishedAt?.toISOString() ?? null,
       createdAt: version.createdAt.toISOString(),
       clauseCount: version._count.clauses,
     };
@@ -197,8 +196,8 @@ export class PoliciesService {
     id: string;
     policyId: string;
     versionNumber: number;
-    status: 'ACTIVE' | 'DRAFT';
-    effectiveDate: Date | null;
+    status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
+    publishedAt: Date | null;
     createdAt: Date;
     clauses: ClauseRow[];
   }): VersionWithClausesDto {
@@ -207,7 +206,7 @@ export class PoliciesService {
       policyId: version.policyId,
       versionNumber: version.versionNumber,
       status: version.status,
-      effectiveDate: version.effectiveDate?.toISOString() ?? null,
+      publishedAt: version.publishedAt?.toISOString() ?? null,
       createdAt: version.createdAt.toISOString(),
       clauses: [...version.clauses]
         .sort((a, b) => a.position - b.position)
