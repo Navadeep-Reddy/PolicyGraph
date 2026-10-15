@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   getImpactRun,
+  getPolicyGraph,
   humanArtifactType,
   updateImpactResult,
 } from "../api/client.ts";
 import AppShell from "../components/AppShell.tsx";
 import DependencyGraph from "../components/DependencyGraph.tsx";
 import PathViewer from "../components/PathViewer.tsx";
-import { ChangeBadge, StatusBadge, reviewLabel } from "../components/badges.tsx";
-import type { ImpactReportDto, ImpactResultDto, ReviewStatus } from "../types/index.ts";
+import { ChangeBadge, StatusBadge } from "../components/badges.tsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/DataStates.tsx";
+import type { ImpactReport, ImpactResult, PolicyGraph, ReviewStatus } from "../types/index.ts";
 
 function hopsLabel(distance: number): string {
   return distance === 1 ? "1 hop away" : `${distance} hops away`;
@@ -17,8 +19,10 @@ function hopsLabel(distance: number): string {
 
 export default function ImpactReportPage() {
   const { impactRunId = "" } = useParams();
-  const [report, setReport] = useState<ImpactReportDto | null>(null);
-  const [results, setResults] = useState<ImpactResultDto[]>([]);
+  const [report, setReport] = useState<ImpactReport | null>(null);
+  const [graph, setGraph] = useState<PolicyGraph | null>(null);
+  const [graphError, setGraphError] = useState("");
+  const [results, setResults] = useState<ImpactResult[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -31,6 +35,9 @@ export default function ImpactReportPage() {
     let cancelled = false;
     setLoading(true);
     setLoadError("");
+    setReport(null);
+    setGraph(null);
+    setGraphError("");
     getImpactRun(impactRunId)
       .then((fetched) => {
         if (cancelled) return;
@@ -38,6 +45,11 @@ export default function ImpactReportPage() {
         setResults(fetched.results);
         setSelectedId(fetched.results[0]?.id ?? null);
         setLoading(false);
+        getPolicyGraph(fetched.policyId, fetched.versionId)
+          .then(value => { if (!cancelled) setGraph(value); })
+          .catch((error: unknown) => {
+            if (!cancelled) setGraphError(error instanceof Error ? error.message : "Graph unavailable.");
+          });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -77,7 +89,7 @@ export default function ImpactReportPage() {
       setResults((previous) =>
         previous.map((result) => (result.id === updated.id ? updated : result)),
       );
-      setFeedback(`Marked as ${reviewLabel(updated.reviewStatus).toLowerCase()}.`);
+      setFeedback(`Marked as ${updated.reviewStatus.toLowerCase()}.`);
       setNote("");
     } catch (err: unknown) {
       setReviewError(err instanceof Error ? err.message : "Updating review status failed.");
@@ -89,12 +101,7 @@ export default function ImpactReportPage() {
   if (loading) {
     return (
       <AppShell breadcrumb="Impact Runs">
-        <div
-          className="mx-auto max-w-6xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-          aria-live="polite"
-        >
-          <p className="type-body-md text-text-secondary">Loading impact report…</p>
-        </div>
+        <LoadingState message="Loading impact report…" />
       </AppShell>
     );
   }
@@ -102,27 +109,18 @@ export default function ImpactReportPage() {
   if (!report) {
     return (
       <AppShell breadcrumb="Impact Runs">
-        <div
-          className="mx-auto max-w-6xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-          role="alert"
-        >
-          <p className="type-item-title text-ink">Impact run not found</p>
-          <p className="type-body-md mt-1 text-text-secondary">
-            {loadError || "This report does not exist."}
-          </p>
-          <Link
+        <ErrorState title="Could not load impact report" description={`${loadError || "This report does not exist."} Return to the dashboard and open a saved report.`} action={<Link
             to="/"
             className="type-body-md mt-3 inline-block px-3 py-1.5 text-accent hover:bg-surface-2"
           >
             ← Back to overview
-          </Link>
-        </div>
+          </Link>} />
       </AppShell>
     );
   }
 
-  const modifiedChanges = report.changeSummary.filter(
-    (change) => change.changeType === "MODIFIED" || change.changeType === "ADDED",
+  const modifiedChanges = report.changedClauses.filter(
+    (change) => change.changeType === "MODIFIED" || change.changeType === "REMOVED",
   );
 
   return (
@@ -156,24 +154,15 @@ export default function ImpactReportPage() {
         </div>
 
         {results.length === 0 ? (
-          <div
-            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-            aria-live="polite"
-          >
-            <p className="type-item-title text-ink">No affected artifacts</p>
-            <p className="type-body-md mt-1 text-text-secondary">
-              The changed clause has no approved downstream dependencies, so there is nothing to
-              review.
-            </p>
-          </div>
+          <div className="mt-6"><EmptyState title="No affected operational items" description={report.changedClauses.length === 0 ? "No clauses changed between these versions." : "No approved downstream operational items were found for the changed clauses."} /></div>
         ) : (
           <div className="mt-6 flex flex-col gap-4 lg:flex-row">
             {/* Result list: ~36% on desktop, stacked above the graph on narrow screens. */}
             <section
-              aria-label="Impacted artifacts"
+              aria-label="Impacted operational items"
               className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card lg:w-[36%] lg:shrink-0"
             >
-              <h2 className="type-card-title px-1 text-ink">Impacted artifacts</h2>
+              <h2 className="type-card-title px-1 text-ink">Impacted operational items</h2>
               <ul className="mt-2 flex flex-col gap-1.5">
                 {results.map((result) => {
                   const isSelected = result.id === selectedId;
@@ -274,13 +263,13 @@ export default function ImpactReportPage() {
               >
                 <h2 className="type-card-title text-ink">Selected dependency path</h2>
                 <div className="mt-3">
-                  <DependencyGraph
-                    nodes={report.graph.nodes}
-                    edges={report.graph.edges}
+                  {graph ? <DependencyGraph
+                    nodes={graph.nodes}
+                    edges={graph.edges}
                     selectedNodeIds={selectedNodeIds}
                     selectedEdgeIds={selectedEdgeIds}
-                    affectedNodeId={selected?.artifact.id ?? null}
-                  />
+                    affectedNodeId={selected ? `artifact:${selected.artifact.id}` : null}
+                  /> : <p className="type-body-sm text-text-secondary" role={graphError ? "alert" : "status"}>{graphError || "Loading graph…"}</p>}
                 </div>
               </section>
 

@@ -3,21 +3,14 @@ import { Link } from "react-router-dom";
 import { listPolicies } from "../api/client.ts";
 import AppShell from "../components/AppShell.tsx";
 import { VersionBadge } from "../components/badges.tsx";
-import type { PolicyListItemDto } from "../types/index.ts";
+import { EmptyState, ErrorState, LoadingState } from "../components/DataStates.tsx";
+import type { PolicySummary } from "../types/index.ts";
 
 type LoadState = "loading" | "ready" | "error";
 
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export default function DashboardPage() {
   const [state, setState] = useState<LoadState>("loading");
-  const [policies, setPolicies] = useState<PolicyListItemDto[]>([]);
+  const [policies, setPolicies] = useState<PolicySummary[]>([]);
   const [error, setError] = useState("");
 
   const load = () => {
@@ -43,45 +36,25 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-4xl">
         <h1 className="type-page-title text-ink">CareSync</h1>
         <p className="type-body-lg mt-1 text-text-secondary">
-          Trace a policy change to the forms, procedures, and software rules it affects.
+          Trace hospital policy changes to the operational items that may need review.
         </p>
 
         {state === "loading" && (
-          <div
-            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-            aria-live="polite"
-          >
-            <p className="type-body-md text-text-secondary">Loading policies…</p>
-          </div>
+          <div className="mt-6"><LoadingState message="Loading policies…" /></div>
         )}
 
         {state === "error" && (
-          <div
-            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-            role="alert"
-          >
-            <p className="type-item-title text-ink">Could not load policies</p>
-            <p className="type-body-md mt-1 text-text-secondary">{error}</p>
-            <p className="type-body-sm mt-1 text-text-muted">
-              Confirm the API is running, then try again.
-            </p>
-            <button
+          <div className="mt-6"><ErrorState title="Could not load policies" description={`${error} Confirm the API is running, then retry.`} action={<button
               type="button"
               onClick={load}
               className="type-label-md mt-3 inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2"
             >
               Retry
-            </button>
-          </div>
+            </button>} /></div>
         )}
 
         {state === "ready" && policies.length === 0 && (
-          <div className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card">
-            <p className="type-item-title text-ink">No policies yet</p>
-            <p className="type-body-md mt-1 text-text-secondary">
-              No policies have been added yet. New policies will appear here once created.
-            </p>
-          </div>
+          <div className="mt-6"><EmptyState title="No policies yet" description="No policies have been added yet. New policies will appear here once created." /></div>
         )}
 
         {state === "ready" && policies.length > 0 && (
@@ -112,9 +85,9 @@ export default function DashboardPage() {
                   <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
                     <dt className="type-label-sm text-text-muted">Active version</dt>
                     <dd className="type-body-md mt-1 text-ink">
-                      {policy.activeVersion ? (
+                      {policy.activeVersionNumber !== null ? (
                         <span className="flex items-center gap-2">
-                          v{policy.activeVersion.versionNumber} <VersionBadge status="ACTIVE" />
+                          v{policy.activeVersionNumber} <VersionBadge status="ACTIVE" />
                         </span>
                       ) : (
                         "—"
@@ -124,9 +97,9 @@ export default function DashboardPage() {
                   <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
                     <dt className="type-label-sm text-text-muted">Draft version</dt>
                     <dd className="type-body-md mt-1 text-ink">
-                      {policy.draftVersion ? (
+                      {policy.draftVersionId ? (
                         <span className="flex items-center gap-2">
-                          v{policy.draftVersion.versionNumber} <VersionBadge status="DRAFT" />
+                          <VersionBadge status="DRAFT" />
                         </span>
                       ) : (
                         "—"
@@ -145,13 +118,12 @@ export default function DashboardPage() {
                   >
                     <dt className="type-label-sm text-text-muted">Latest impact run</dt>
                     <dd className="type-body-md mt-1 text-ink">
-                      {policy.latestImpactRun ? (
+                      {policy.latestImpactRunId ? (
                         <Link
-                          to={`/impact-runs/${policy.latestImpactRun.id}`}
+                          to={`/impact-runs/${policy.latestImpactRunId}`}
                           className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent"
                         >
-                          {policy.latestImpactRun.resultCount} affected ·{" "}
-                          {formatDate(policy.latestImpactRun.createdAt)}
+                          View impact report
                         </Link>
                       ) : (
                         <span className="text-text-muted">None yet</span>

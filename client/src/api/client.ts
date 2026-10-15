@@ -1,119 +1,97 @@
 import type {
-  ClauseDto,
-  ImpactReportDto,
-  ImpactResultDto,
-  PolicyDetailDto,
-  PolicyGraphDto,
-  PolicyListItemDto,
-  ReviewStatus,
-  VersionChangesDto,
+  ApiErrorCode, Clause, ClauseChange, CreateClauseInput, CreateDependencyInput,
+  CreateItemInput, CreatePolicyInput, CreatePolicyResponse, Dependency,
+  DependencyStatus, DependencySuggestions, ImpactReport, ImpactResult,
+  ImpactRunSummary, Item, PolicyDetail, PolicyGraph, PolicySummary,
+  ReviewStatus, UpdateClauseInput, UpdateDependencyInput, VersionDetail,
 } from "../types/index.ts";
 
-const API_BASE = import.meta.env.VITE_API_URL as string | undefined;
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/+$/, "");
+export const mocksEnabled = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "true";
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code: ApiErrorCode | "REQUEST_FAILED";
+
+  constructor(status: number, message: string, code: ApiErrorCode | "REQUEST_FAILED" = "REQUEST_FAILED") {
     super(message);
+    this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE ?? ""}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+  const headers = new Headers(init?.headers);
+  headers.set("Accept", "application/json");
+  if (init?.body !== undefined) headers.set("Content-Type", "application/json");
+  const options = { ...init, headers };
+  const response = mocksEnabled
+    ? await (await import("./mocks.ts")).mockRequest(path, options)
+    : await fetch(`${API_BASE}${path}`, options);
   if (!response.ok) {
-    let detail = `Request failed with status ${response.status}`;
-    try {
-      const body = (await response.json()) as { message?: string | string[] };
-      if (typeof body.message === "string") detail = body.message;
-      else if (Array.isArray(body.message)) detail = body.message.join(", ");
-    } catch {
-      // Keep the default detail when the error body is not JSON.
+    let message = `Request failed with status ${response.status}`;
+    let code: ApiError["code"] = "REQUEST_FAILED";
+    const body: unknown = await response.json().catch(() => null);
+    if (isRecord(body) && isRecord(body.error)) {
+      if (typeof body.error.message === "string") message = body.error.message;
+      const knownCodes: string[] = ["VALIDATION_ERROR", "NOT_FOUND", "CONFLICT", "NO_BASE_VERSION", "AI_FAILED"];
+      if (typeof body.error.code === "string" && knownCodes.includes(body.error.code)) code = body.error.code as ApiErrorCode;
     }
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, message, code);
   }
-  return (await response.json()) as T;
+  if (response.status === 204) return undefined as T;
+  return await response.json() as T;
 }
 
-export function listPolicies(): Promise<PolicyListItemDto[]> {
-  return request<PolicyListItemDto[]>("/policies");
+const id = encodeURIComponent;
+const json = (method: string, body?: unknown): RequestInit => ({
+  method, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+});
+
+export const getHealth = () => request<{ status: "ok" }>("/health");
+export const listPolicies = () => request<PolicySummary[]>("/policies");
+export const createPolicy = (input: CreatePolicyInput) => request<CreatePolicyResponse>("/policies", json("POST", input));
+export const getPolicy = (policyId: string) => request<PolicyDetail>(`/policies/${id(policyId)}`);
+export const getVersion = (versionId: string) => request<VersionDetail>(`/versions/${id(versionId)}`);
+export const createRevision = (policyId: string, input: { text?: string } = {}) =>
+  request<VersionDetail>(`/policies/${id(policyId)}/revisions`, json("POST", input));
+export const publishVersion = (versionId: string) => request<VersionDetail>(`/versions/${id(versionId)}/publish`, json("POST"));
+export const createClause = (versionId: string, input: CreateClauseInput) =>
+  request<Clause>(`/versions/${id(versionId)}/clauses`, json("POST", input));
+export const updateClause = (versionId: string, clauseId: string, input: UpdateClauseInput) =>
+  request<Clause>(`/versions/${id(versionId)}/clauses/${id(clauseId)}`, json("PATCH", input));
+export const deleteClause = (versionId: string, clauseId: string) =>
+  request<void>(`/versions/${id(versionId)}/clauses/${id(clauseId)}`, json("DELETE"));
+export const getVersionChanges = (versionId: string, against?: string) =>
+  request<ClauseChange[]>(`/versions/${id(versionId)}/changes${against === undefined ? "" : `?${new URLSearchParams({ against })}`}`);
+export const listItems = () => request<Item[]>("/items");
+export const createItem = (input: CreateItemInput) => request<Item>("/items", json("POST", input));
+export const updateItem = (itemId: string, input: Partial<CreateItemInput>) => request<Item>(`/items/${id(itemId)}`, json("PATCH", input));
+export const deleteItem = (itemId: string) => request<void>(`/items/${id(itemId)}`, json("DELETE"));
+export const listDependencies = (policyId: string, status?: DependencyStatus) =>
+  request<Dependency[]>(`/policies/${id(policyId)}/dependencies${status === undefined ? "" : `?${new URLSearchParams({ status })}`}`);
+export const createDependency = (policyId: string, input: CreateDependencyInput) =>
+  request<Dependency>(`/policies/${id(policyId)}/dependencies`, json("POST", input));
+export const updateDependency = (dependencyId: string, input: UpdateDependencyInput) =>
+  request<Dependency>(`/dependencies/${id(dependencyId)}`, json("PATCH", input));
+export const deleteDependency = (dependencyId: string) => request<void>(`/dependencies/${id(dependencyId)}`, json("DELETE"));
+export const suggestDependencies = (policyId: string, versionId?: string) =>
+  request<DependencySuggestions>(`/policies/${id(policyId)}/dependency-suggestions`, json("POST", versionId === undefined ? {} : { versionId }));
+export const getPolicyGraph = (policyId: string, versionId?: string) =>
+  request<PolicyGraph>(`/policies/${id(policyId)}/graph${versionId === undefined ? "" : `?${new URLSearchParams({ versionId })}`}`);
+export const createImpactRun = (versionId: string) => request<ImpactReport>(`/versions/${id(versionId)}/impact-runs`, json("POST"));
+export const listImpactRuns = (versionId: string) => request<ImpactRunSummary[]>(`/versions/${id(versionId)}/impact-runs`);
+export const getImpactRun = (impactRunId: string) => request<ImpactReport>(`/impact-runs/${id(impactRunId)}`);
+export const updateImpactResult = (impactResultId: string, reviewStatus: ReviewStatus, reviewComment?: string) =>
+  request<ImpactResult>(`/impact-results/${id(impactResultId)}`, json("PATCH", { reviewStatus, ...(reviewComment === undefined ? {} : { reviewComment }) }));
+
+export function humanRelationshipLabel(type: string): string {
+  return type.toLowerCase().replaceAll("_", " ").replace(/^./, letter => letter.toUpperCase());
 }
 
-export function getPolicy(policyId: string): Promise<PolicyDetailDto> {
-  return request<PolicyDetailDto>(`/policies/${policyId}`);
-}
-
-export function getPolicyGraph(policyId: string): Promise<PolicyGraphDto> {
-  return request<PolicyGraphDto>(`/policies/${policyId}/graph`);
-}
-
-export function getVersionChanges(versionId: string): Promise<VersionChangesDto> {
-  return request<VersionChangesDto>(`/versions/${versionId}/changes`);
-}
-
-export function updateClause(
-  versionId: string,
-  clauseId: string,
-  text: string,
-): Promise<ClauseDto> {
-  return request<ClauseDto>(`/versions/${versionId}/clauses/${clauseId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ text }),
-  });
-}
-
-export function createImpactRun(versionId: string): Promise<ImpactReportDto> {
-  return request<ImpactReportDto>(`/versions/${versionId}/impact-runs`, {
-    method: "POST",
-  });
-}
-
-export function getImpactRun(impactRunId: string): Promise<ImpactReportDto> {
-  return request<ImpactReportDto>(`/impact-runs/${impactRunId}`);
-}
-
-export function updateImpactResult(
-  impactResultId: string,
-  reviewStatus: ReviewStatus,
-  reviewComment?: string,
-): Promise<ImpactResultDto> {
-  return request<ImpactResultDto>(`/impact-results/${impactResultId}`, {
-    method: "PATCH",
-    body: JSON.stringify(
-      reviewComment === undefined ? { reviewStatus } : { reviewStatus, reviewComment },
-    ),
-  });
-}
-
-/** Human-facing edge labels per DESIGN.md; falls back to the server label. */
-export function humanRelationshipLabel(relationshipType: string, fallback: string): string {
-  switch (relationshipType) {
-    case "IMPLEMENTED_BY":
-      return "Implements";
-    case "REFERENCED_BY":
-      return "References";
-    case "CONSUMED_BY":
-      return "Feeds into";
-    default:
-      return fallback
-        .split(/[_ ]+/)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
-  }
-}
-
-export function humanArtifactType(type: string): string {
-  switch (type) {
-    case "FORM":
-      return "Form";
-    case "PROCEDURE":
-      return "Procedure";
-    case "SOFTWARE_RULE":
-      return "Software rule";
-    default:
-      return type;
-  }
-}
+export const humanArtifactType = humanRelationshipLabel;

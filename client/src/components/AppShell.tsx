@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link, matchPath, NavLink, useLocation } from "react-router-dom";
 import type { KeyboardEvent, ReactNode } from "react";
+import { mocksEnabled } from "../api/client.ts";
 
 interface AppShellProps {
   breadcrumb: string;
@@ -159,6 +160,7 @@ export default function AppShell({ breadcrumb, children }: AppShellProps) {
           <main id="main-content" className="mx-auto w-full max-w-[1440px] px-5 py-7 md:px-10 lg:px-16">
             <div className="mb-7 lg:hidden"><BreadcrumbTrail trail={breadcrumb} /></div>
             {children}
+            {mocksEnabled && <p role="status" className="type-label-sm mt-7 rounded-inner border border-border-default bg-surface-1 p-4 text-ink">Development mocks · temporary in-memory data · AI and impact calculations require the API</p>}
           </main>
         </div>
       </div>

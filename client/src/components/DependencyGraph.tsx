@@ -10,8 +10,8 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { humanArtifactType, humanRelationshipLabel } from "../api/client.ts";
-import type { GraphEdgeDto, GraphNodeDto } from "../types/index.ts";
+import { humanRelationshipLabel } from "../api/client.ts";
+import type { GraphEdge, GraphNode as GraphNodeType } from "../types/index.ts";
 
 interface GraphNodeData extends Record<string, unknown> {
   kindLabel: string;
@@ -69,41 +69,37 @@ function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
 const nodeTypes = { policyNode: GraphNode };
 
 interface DependencyGraphProps {
-  nodes: GraphNodeDto[];
-  edges: GraphEdgeDto[];
+  nodes: GraphNodeType[];
+  edges: GraphEdge[];
   selectedNodeIds?: string[];
   selectedEdgeIds?: string[];
   affectedNodeId?: string | null;
   heightClassName?: string;
 }
 
-function glyphFor(node: GraphNodeDto): string {
-  if (node.nodeType === "CLAUSE") return "§";
-  if (node.artifactType === "FORM") return "▤";
-  if (node.artifactType === "PROCEDURE") return "☰";
-  return "</>";
+function glyphFor(node: GraphNodeType): string {
+  return node.type === "CLAUSE" ? "§" : "▤";
 }
 
-function kindLabelFor(node: GraphNodeDto): string {
-  if (node.nodeType === "CLAUSE") return "Policy clause";
-  return humanArtifactType(node.artifactType ?? "FORM");
+function kindLabelFor(node: GraphNodeType): string {
+  return node.type === "CLAUSE" ? "Policy clause" : "Operational item";
 }
 
 /** Layered layout: clause nodes in column 0, each hop one column right. */
-function layoutColumns(nodes: GraphNodeDto[], edges: GraphEdgeDto[]): Map<string, number> {
+function layoutColumns(nodes: GraphNodeType[], edges: GraphEdge[]): Map<string, number> {
   const distance = new Map<string, number>();
   const queue: string[] = [];
   for (const node of nodes) {
-    if (node.nodeType === "CLAUSE") {
+    if (node.type === "CLAUSE") {
       distance.set(node.id, 0);
       queue.push(node.id);
     }
   }
   const outgoing = new Map<string, string[]>();
   for (const edge of edges) {
-    const list = outgoing.get(edge.sourceNodeId) ?? [];
-    list.push(edge.targetNodeId);
-    outgoing.set(edge.sourceNodeId, list);
+    const list = outgoing.get(edge.source) ?? [];
+    list.push(edge.target);
+    outgoing.set(edge.source, list);
   }
   let head = 0;
   while (head < queue.length) {
@@ -136,7 +132,7 @@ export default function DependencyGraph({
     const selectedNodes = new Set(selectedNodeIds);
     const selectedEdges = new Set(selectedEdgeIds);
     const columns = layoutColumns(nodes, edges);
-    const byColumn = new Map<number, GraphNodeDto[]>();
+    const byColumn = new Map<number, GraphNodeType[]>();
     for (const node of nodes) {
       const col = columns.get(node.id) ?? 0;
       const list = byColumn.get(col) ?? [];
@@ -148,10 +144,10 @@ export default function DependencyGraph({
     for (const [col, list] of [...byColumn.entries()].sort((a, b) => a[0] - b[0])) {
       list
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => a.label.localeCompare(b.label))
         .forEach((node, row) => {
           const visual =
-            node.id === affectedNodeId ? "affected" : node.nodeType === "CLAUSE" ? "clause" : "artifact";
+            node.id === affectedNodeId ? "affected" : node.type === "CLAUSE" ? "clause" : "artifact";
           const dimmed = hasSelection && !selectedNodes.has(node.id);
           flowNodes.push({
             id: node.id,
@@ -159,8 +155,8 @@ export default function DependencyGraph({
             position: { x: 24 + col * 280, y: 24 + row * 132 },
             data: {
               kindLabel: kindLabelFor(node),
-              name: node.name,
-              mono: node.nodeType === "CLAUSE",
+              name: node.label,
+              mono: node.type === "CLAUSE",
               glyph: glyphFor(node),
               visual,
               dimmed,
@@ -176,9 +172,9 @@ export default function DependencyGraph({
       const onPath = selectedEdges.has(edge.id);
       return {
         id: edge.id,
-        source: edge.sourceNodeId,
-        target: edge.targetNodeId,
-        label: humanRelationshipLabel(edge.relationshipType, edge.relationshipLabel).toUpperCase(),
+        source: edge.source,
+        target: edge.target,
+        label: humanRelationshipLabel(edge.relationshipType).toUpperCase(),
         animated: false,
         style: {
           stroke: "#36637C",

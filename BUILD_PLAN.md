@@ -80,8 +80,8 @@ scaffold
 
 - [x] F-01 `[FRONTEND]` Create React + TypeScript + Vite project in `client/`, configure Tailwind, add `@xyflow/react`, apply `DESIGN.md` tokens
 - [x] F-02 `[FRONTEND]` App shell with router and navigation for all routes in `SPEC.md` section 4
-- [ ] F-03 `[FRONTEND]` Typed API client and types mirroring `API_CONTRACT.md`; dev-only mock layer behind `VITE_USE_MOCKS`
-- [ ] F-04 `[FRONTEND]` Shared components: `StatusBadge`, `ChangeBadge`, loading, error, and empty states
+- [x] F-03 `[FRONTEND]` Typed API client and types mirroring `API_CONTRACT.md`; dev-only mock layer behind `VITE_USE_MOCKS`
+- [x] F-04 `[FRONTEND]` Shared components: `StatusBadge`, `ChangeBadge`, loading, error, and empty states
 
 ### Screens
 

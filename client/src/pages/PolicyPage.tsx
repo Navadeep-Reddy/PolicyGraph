@@ -5,18 +5,25 @@ import {
   createImpactRun,
   getPolicy,
   getPolicyGraph,
+  getVersion,
   getVersionChanges,
   updateClause,
 } from "../api/client.ts";
 import AppShell from "../components/AppShell.tsx";
 import DependencyGraph from "../components/DependencyGraph.tsx";
 import { ChangeBadge } from "../components/badges.tsx";
+import { ErrorState, LoadingState } from "../components/DataStates.tsx";
 import type {
-  ClauseChangeDto,
-  PolicyDetailDto,
-  PolicyGraphDto,
-  VersionChangesDto,
+  ClauseChange,
+  PolicyDetail,
+  PolicyGraph,
+  VersionDetail,
 } from "../types/index.ts";
+
+interface PolicyView extends PolicyDetail {
+  activeVersion: VersionDetail | null;
+  draftVersion: VersionDetail | null;
+}
 
 function deadlineMention(text: string): string | null {
   const match = text.match(/\d+\s*days?/i);
@@ -42,9 +49,9 @@ export default function PolicyPage() {
   const { policyId = "" } = useParams();
   const navigate = useNavigate();
 
-  const [policy, setPolicy] = useState<PolicyDetailDto | null>(null);
-  const [graph, setGraph] = useState<PolicyGraphDto | null>(null);
-  const [changes, setChanges] = useState<VersionChangesDto | null>(null);
+  const [policy, setPolicy] = useState<PolicyView | null>(null);
+  const [graph, setGraph] = useState<PolicyGraph | null>(null);
+  const [changes, setChanges] = useState<ClauseChange[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -56,14 +63,15 @@ export default function PolicyPage() {
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState("");
 
-  const refreshChanges = useCallback(async (draftVersionId: string) => {
+  const refreshChanges = useCallback(async (draftVersionId: string, isCurrent: () => boolean = () => true) => {
     const fresh = await getVersionChanges(draftVersionId);
+    if (!isCurrent()) return;
     setChanges(fresh);
     setDraftTexts((previous) => {
       const next = { ...previous };
-      for (const change of fresh.changes) {
-        if (change.draftClause && !(change.draftClause.id in next)) {
-          next[change.draftClause.id] = change.draftClause.text;
+      for (const change of fresh) {
+        if (change.after && !(change.after.id in next)) {
+          next[change.after.id] = change.after.text;
         }
       }
       return next;
@@ -74,13 +82,27 @@ export default function PolicyPage() {
     let cancelled = false;
     setLoading(true);
     setLoadError("");
-    Promise.all([getPolicy(policyId), getPolicyGraph(policyId)])
-      .then(([detail, policyGraph]) => {
+    setPolicy(null);
+    setChanges(null);
+    setGraph(null);
+    setDraftTexts({});
+    getPolicy(policyId)
+      .then(async (detail) => {
+        const active = detail.versions.find(version => version.status === "ACTIVE");
+        const draft = detail.versions.find(version => version.status === "DRAFT");
+        const [activeVersion, draftVersion] = await Promise.all([
+          active ? getVersion(active.id) : null,
+          draft ? getVersion(draft.id) : null,
+        ]);
         if (cancelled) return;
-        setPolicy(detail);
-        setGraph(policyGraph);
-        if (detail.draftVersion) {
-          refreshChanges(detail.draftVersion.id)
+        setPolicy({ ...detail, activeVersion, draftVersion });
+        if (activeVersion || draftVersion) {
+          getPolicyGraph(policyId).then(value => { if (!cancelled) setGraph(value); }).catch((err: unknown) => {
+            if (!cancelled) setLoadError(err instanceof Error ? `Graph unavailable: ${err.message}` : "Graph unavailable.");
+          });
+        }
+        if (draftVersion) {
+          refreshChanges(draftVersion.id, () => !cancelled)
             .then(() => {
               if (!cancelled) setLoading(false);
             })
@@ -111,24 +133,24 @@ export default function PolicyPage() {
 
   const changedCount = useMemo(
     () =>
-      (changes?.changes ?? []).filter(
-        (change) => change.changeType === "MODIFIED" || change.changeType === "ADDED",
+      (changes ?? []).filter(
+        (change) => change.changeType === "MODIFIED" || change.changeType === "REMOVED",
       ).length,
     [changes],
   );
 
-  const handleSave = async (change: ClauseChangeDto) => {
-    if (!policy?.draftVersion || !change.draftClause) return;
-    const text = (draftTexts[change.draftClause.id] ?? "").trim();
+  const handleSave = async (change: ClauseChange) => {
+    if (!policy?.draftVersion || !change.after) return;
+    const text = (draftTexts[change.after.id] ?? "").trim();
     if (text.length === 0) {
       setSaveError("Draft text cannot be empty.");
       return;
     }
-    setSavingClauseId(change.draftClause.id);
+    setSavingClauseId(change.after.id);
     setSaveError("");
     setSaveNotice("");
     try {
-      const updated = await updateClause(policy.draftVersion.id, change.draftClause.id, text);
+      const updated = await updateClause(policy.draftVersion.id, change.after.id, { text });
       setDraftTexts((previous) => ({ ...previous, [updated.id]: updated.text }));
       await refreshChanges(policy.draftVersion.id);
       setSaveNotice("Draft saved.");
@@ -162,12 +184,7 @@ export default function PolicyPage() {
   if (loading) {
     return (
       <AppShell breadcrumb="Policies">
-        <div
-          className="mx-auto max-w-5xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-          aria-live="polite"
-        >
-          <p className="type-body-md text-text-secondary">Loading policy…</p>
-        </div>
+        <LoadingState message="Loading policy…" />
       </AppShell>
     );
   }
@@ -175,21 +192,12 @@ export default function PolicyPage() {
   if (!policy) {
     return (
       <AppShell breadcrumb="Policies">
-        <div
-          className="mx-auto max-w-5xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-          role="alert"
-        >
-          <p className="type-item-title text-ink">Policy not found</p>
-          <p className="type-body-md mt-1 text-text-secondary">
-            {loadError || "This policy does not exist."}
-          </p>
-          <Link
+        <ErrorState title="Could not load policy" description={`${loadError || "This policy does not exist."} Return to the dashboard and open a policy.`} action={<Link
             to="/"
             className="type-body-md mt-3 inline-block px-3 py-1.5 text-accent hover:bg-surface-2"
           >
             ← Back to overview
-          </Link>
-        </div>
+          </Link>} />
       </AppShell>
     );
   }
@@ -278,12 +286,12 @@ export default function PolicyPage() {
         )}
 
         <div className="mt-4 flex flex-col gap-4">
-          {(changes?.changes ?? []).map((change) => {
-            const draftValue = change.draftClause
-              ? (draftTexts[change.draftClause.id] ?? change.draftClause.text)
+          {(changes ?? []).map((change) => {
+            const draftValue = change.after
+              ? (draftTexts[change.after.id] ?? change.after.text)
               : "";
-            const dirty = change.draftClause
-              ? draftValue !== change.draftClause.text
+            const dirty = change.after
+              ? draftValue !== change.after.text
               : false;
             return (
               <section
@@ -297,10 +305,10 @@ export default function PolicyPage() {
                   </p>
                   <ChangeBadge changeType={change.changeType} />
                 </div>
-                {change.activeClause && change.draftClause && (
+                {change.before && change.after && (
                   <MutationLine
-                    activeText={change.activeClause.text}
-                    draftText={change.draftClause.text}
+                    activeText={change.before.text}
+                    draftText={change.after.text}
                   />
                 )}
 
@@ -308,8 +316,8 @@ export default function PolicyPage() {
                   <div>
                     <h2 className="type-label-sm text-text-muted">Active version</h2>
                     <div className="mt-2 rounded-inner border border-border-faint bg-surface-1 p-3.5">
-                      {change.activeClause ? (
-                        <p className="type-body-md text-ink">{change.activeClause.text}</p>
+                      {change.before ? (
+                        <p className="type-body-md text-ink">{change.before.text}</p>
                       ) : (
                         <p className="type-body-sm text-text-muted">
                           No active clause with this key.
@@ -319,21 +327,21 @@ export default function PolicyPage() {
                   </div>
                   <div>
                     <h2 className="type-label-sm text-text-muted">Draft version</h2>
-                    {change.draftClause ? (
+                    {change.after ? (
                       <>
                         <label
-                          htmlFor={`draft-${change.draftClause.id}`}
+                          htmlFor={`draft-${change.after.id}`}
                           className="sr-only"
                         >
                           Draft text for {change.stableKey}
                         </label>
                         <textarea
-                          id={`draft-${change.draftClause.id}`}
+                          id={`draft-${change.after.id}`}
                           value={draftValue}
                           onChange={(event) =>
                             setDraftTexts((previous) => ({
                               ...previous,
-                              [change.draftClause?.id as string]: event.target.value,
+                              [change.after?.id as string]: event.target.value,
                             }))
                           }
                           rows={4}
@@ -343,10 +351,10 @@ export default function PolicyPage() {
                           <button
                             type="button"
                             onClick={() => handleSave(change)}
-                            disabled={savingClauseId === change.draftClause.id || !dirty}
+                            disabled={savingClauseId === change.after.id || !dirty}
                             className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {savingClauseId === change.draftClause.id ? "Saving…" : "Save draft"}
+                            {savingClauseId === change.after.id ? "Saving…" : "Save draft"}
                           </button>
                           {dirty && (
                             <span className="type-body-sm text-text-muted">Unsaved edits</span>
@@ -367,7 +375,7 @@ export default function PolicyPage() {
           })}
         </div>
 
-        {(!changes || changes.changes.length === 0) && !policy.draftVersion && (
+        {(!changes || changes.length === 0) && !policy.draftVersion && (
           <div className="mt-4 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card">
             <p className="type-body-md text-text-secondary">
               This policy has no draft version, so there is nothing to compare yet.
