@@ -55,9 +55,9 @@ scaffold
 
 ### Dependencies
 
-- [ ] B-15 `[BACKEND]` Dependency `GET` / `POST` (manual, saved `APPROVED`) / `PATCH` / `DELETE`, with validation (known key or id, no self-link, no duplicate)
-- [ ] B-16 `[BACKEND]` `POST /policies/:id/dependency-suggestions`: AI suggestions saved `PROPOSED`, invalid or duplicate ones discarded
-- [ ] B-17 `[BACKEND]` `GET /policies/:id/graph` (nodes and edges with status)
+- [x] B-15 `[BACKEND]` Dependency `GET` / `POST` (manual, saved `APPROVED`) / `PATCH` / `DELETE`, with validation (known key or id, no self-link, no duplicate)
+- [x] B-16 `[BACKEND]` `POST /policies/:id/dependency-suggestions`: AI suggestions saved `PROPOSED`, invalid or duplicate ones discarded
+- [x] B-17 `[BACKEND]` `GET /policies/:id/graph` (nodes and edges with status)
 
 ### Impact
 

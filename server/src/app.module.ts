@@ -7,9 +7,10 @@ import { GraphModule } from './graph/graph.module.js';
 import { ImpactModule } from './impact/impact.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { ItemsModule } from './items/items.module.js';
+import { DependenciesModule } from './dependencies/dependencies.module.js';
 
 @Module({
-  imports: [PrismaModule, PoliciesModule, GraphModule, ImpactModule, AiModule, ItemsModule],
+  imports: [PrismaModule, PoliciesModule, GraphModule, ImpactModule, AiModule, ItemsModule, DependenciesModule],
   controllers: [AppController],
   providers: [AppService],
 })

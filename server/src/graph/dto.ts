@@ -1,7 +1,4 @@
-// Shared dependency-graph DTOs. Clause nodes are named by stableKey (e.g.
-// TRAVEL-CLAIM-DEADLINE) and artifact nodes by artifact name; every edge
-// carries both the raw relationshipType and a human-readable
-// relationshipLabel so the client can render labels without mapping logic.
+import { IsOptional, IsString } from 'class-validator';
 
 export interface GraphNodeDto {
   id: string;
@@ -21,18 +18,32 @@ export interface GraphEdgeDto {
   rationale?: string | null;
 }
 
-export interface PolicyGraphDto {
-  policyId: string;
-  nodes: GraphNodeDto[];
-  edges: GraphEdgeDto[];
+export function relationshipLabel(relationshipType: string): string {
+  return ({ GOVERNS: 'governs', UPDATES: 'updates', APPEARS_IN: 'appears in' } as Record<string, string>)[relationshipType] ?? relationshipType;
 }
 
-export const RELATIONSHIP_LABELS: Record<string, string> = {
-  GOVERNS: 'governs',
-  UPDATES: 'updates',
-  APPEARS_IN: 'appears in',
-};
+export interface PolicyGraphNodeDto {
+  id: string;
+  type: 'CLAUSE' | 'ARTIFACT';
+  label: string;
+  subtitle: string | null;
+}
 
-export function relationshipLabel(relationshipType: string): string {
-  return RELATIONSHIP_LABELS[relationshipType] ?? relationshipType;
+export interface PolicyGraphEdgeDto {
+  id: string;
+  source: string;
+  target: string;
+  relationshipType: string;
+  status: string;
+}
+
+export interface PolicyGraphDto {
+  nodes: PolicyGraphNodeDto[];
+  edges: PolicyGraphEdgeDto[];
+}
+
+export class GraphQueryDto {
+  @IsOptional()
+  @IsString()
+  versionId?: string;
 }
