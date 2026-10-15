@@ -6,9 +6,10 @@ import { PoliciesModule } from './policies/policies.module.js';
 import { GraphModule } from './graph/graph.module.js';
 import { ImpactModule } from './impact/impact.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { ItemsModule } from './items/items.module.js';
 
 @Module({
-  imports: [PrismaModule, PoliciesModule, GraphModule, ImpactModule, AiModule],
+  imports: [PrismaModule, PoliciesModule, GraphModule, ImpactModule, AiModule, ItemsModule],
   controllers: [AppController],
   providers: [AppService],
 })

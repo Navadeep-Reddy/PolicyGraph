@@ -51,7 +51,7 @@ scaffold
 
 ### Operational items
 
-- [ ] B-14 `[BACKEND]` Items `GET` / `POST` / `PATCH` / `DELETE` (deleting removes its edges)
+- [x] B-14 `[BACKEND]` Items `GET` / `POST` / `PATCH` / `DELETE` (deleting removes its edges)
 
 ### Dependencies
 
