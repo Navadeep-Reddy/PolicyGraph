@@ -33,11 +33,22 @@ export default function DashboardPage() {
 
   return (
     <AppShell breadcrumb="Overview">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="type-page-title text-ink">CareSync</h1>
-        <p className="type-body-lg mt-1 text-text-secondary">
-          Trace hospital policy changes to the operational items that may need review.
-        </p>
+      <div>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="type-label-sm text-accent">Policy operations · overview</p>
+            <h1 className="type-page-title mt-2 text-ink">Dashboard</h1>
+            <p className="type-body-lg mt-1 max-w-[72ch] text-text-secondary">
+              Trace hospital policy changes to the operational items that may need review.
+            </p>
+          </div>
+          <Link
+            to="/policies/new"
+            className="type-label-md inline-flex h-11 items-center justify-center rounded-action bg-ink px-7 text-on-dark shadow-sm transition-colors hover:bg-accent"
+          >
+            New policy
+          </Link>
+        </div>
 
         {state === "loading" && (
           <div className="mt-6"><LoadingState message="Loading policies…" /></div>
@@ -54,7 +65,7 @@ export default function DashboardPage() {
         )}
 
         {state === "ready" && policies.length === 0 && (
-          <div className="mt-6"><EmptyState title="No policies yet" description="No policies have been added yet. New policies will appear here once created." /></div>
+          <div className="mt-6"><EmptyState title="No policies yet" description="Create a policy to start tracking clause changes and the operational items they may affect." action={<Link to="/policies/new" className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent">Create your first policy</Link>} /></div>
         )}
 
         {state === "ready" && policies.length > 0 && (

@@ -85,8 +85,8 @@ scaffold
 
 ### Screens
 
-- [ ] F-05 `[FRONTEND]` Dashboard `/`
-- [ ] F-06 `[FRONTEND]` New policy `/policies/new` with AI loading and error states
+- [x] F-05 `[FRONTEND]` Dashboard `/`
+- [x] F-06 `[FRONTEND]` New policy `/policies/new` with AI loading and error states
 - [ ] F-07 `[FRONTEND]` Policy detail `/policies/:policyId`: versions, clauses, draft edit/add/delete, AI-proposed marker, Publish, Create revision
 - [ ] F-08 `[FRONTEND]` Operational items `/items`: list, create, edit, delete
 - [ ] F-09 `[FRONTEND]` `DependencyGraph` component: solid approved edges, dashed proposed edges, relationship labels, fit view, text equivalent
