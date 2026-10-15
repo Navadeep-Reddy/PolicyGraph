@@ -36,13 +36,13 @@ scaffold
 
 ### Policies and AI clauses
 
-- [ ] B-05 `[BACKEND]` `GET /policies`, `GET /policies/:id`, `GET /versions/:versionId`
-- [ ] B-06 `[BACKEND]` NVIDIA client in `ai/` using the `openai` package; base URL, model, and key from `.env` only
-- [ ] B-07 `[BACKEND]` Clause extraction: prompt, JSON parsing, shape validation, reuse of supplied existing keys
-- [ ] B-08 `[BACKEND]` `POST /policies` (creates policy, draft v1, AI-extracted clauses; `AI_FAILED` on failure)
-- [ ] B-09 `[BACKEND]` `POST /policies/:id/revisions` (copy active clauses with the same keys; optional pasted text re-extracts with key reuse)
-- [ ] B-10 `[BACKEND]` Draft clause `POST` / `PATCH` / `DELETE` (draft only; recompute `textHash`)
-- [ ] B-11 `[BACKEND]` `POST /versions/:versionId/publish` (draft → ACTIVE, previous ACTIVE → ARCHIVED)
+- [x] B-05 `[BACKEND]` `GET /policies`, `GET /policies/:id`, `GET /versions/:versionId`
+- [x] B-06 `[BACKEND]` NVIDIA client in `ai/` using the `openai` package; base URL, model, and key from `.env` only
+- [x] B-07 `[BACKEND]` Clause extraction: prompt, JSON parsing, shape validation, reuse of supplied existing keys
+- [x] B-08 `[BACKEND]` `POST /policies` (creates policy, draft v1, AI-extracted clauses; `AI_FAILED` on failure)
+- [x] B-09 `[BACKEND]` `POST /policies/:id/revisions` (copy active clauses with the same keys; optional pasted text re-extracts with key reuse)
+- [x] B-10 `[BACKEND]` Draft clause `POST` / `PATCH` / `DELETE` (draft only; recompute `textHash`)
+- [x] B-11 `[BACKEND]` `POST /versions/:versionId/publish` (draft → ACTIVE, previous ACTIVE → ARCHIVED)
 
 ### Change detection
 

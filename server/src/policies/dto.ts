@@ -1,12 +1,56 @@
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import type { ClauseChangeType } from './change-classifier.js';
 
 // PATCH /versions/:versionId/clauses/:clauseId request body.
 export class UpdateClauseDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
+  @Matches(/\S/)
   @MaxLength(10000)
+  text?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/\S/)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/\S/)
+  category?: string;
+}
+
+export class CreateClauseDto {
+  @IsString() @Matches(/\S/) stableKey!: string;
+  @IsString() @Matches(/\S/) title!: string;
+  @IsString() @Matches(/\S/) @MaxLength(10000) text!: string;
+  @IsString() @Matches(/\S/) category!: string;
+}
+
+export class CreatePolicyDto {
+  @IsString()
+  @Matches(/\S/)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsString()
+  @Matches(/\S/)
   text!: string;
+}
+
+export class CreateRevisionDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/\S/)
+  text?: string;
+}
+
+export interface CreatePolicyResponseDto {
+  policy: PolicyDetailDto;
+  draft: VersionDetailDto;
 }
 
 export interface ClauseDto {
@@ -18,51 +62,46 @@ export interface ClauseDto {
   textHash: string;
 }
 
-export interface VersionSummaryDto {
+export interface VersionClauseDto {
+  id: string;
+  versionId: string;
+  stableKey: string;
+  title: string;
+  text: string;
+  category: string;
+  position: number;
+}
+
+export interface VersionDto {
   id: string;
   policyId: string;
   versionNumber: number;
   status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
   publishedAt: string | null;
   createdAt: string;
-  clauseCount: number;
 }
 
-export interface VersionWithClausesDto {
-  id: string;
-  policyId: string;
-  versionNumber: number;
-  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
-  publishedAt: string | null;
-  createdAt: string;
-  clauses: ClauseDto[];
+export interface VersionDetailDto extends VersionDto {
+  clauses: VersionClauseDto[];
 }
 
-// Dashboard row: GET /policies carries every MVP dashboard field so the
-// client renders without follow-up requests.
-export interface PolicyListItemDto {
+export interface PolicySummaryDto {
   id: string;
   title: string;
   description: string | null;
-  activeVersion: VersionSummaryDto | null;
-  draftVersion: VersionSummaryDto | null;
+  activeVersionNumber: number | null;
+  draftVersionId: string | null;
+  activeVersionId: string | null;
   approvedDependencyCount: number;
-  latestImpactRun: {
-    id: string;
-    policyVersionId: string;
-    createdAt: string;
-    resultCount: number;
-  } | null;
+  latestImpactRunId: string | null;
+  updatedAt: string;
 }
 
-// Policy comparison screen: GET /policies/:id carries active and draft
-// clauses for side-by-side display and editing.
 export interface PolicyDetailDto {
   id: string;
   title: string;
   description: string | null;
-  activeVersion: VersionWithClausesDto | null;
-  draftVersion: VersionWithClausesDto | null;
+  versions: VersionDto[];
 }
 
 export interface ClauseChangeDto {
