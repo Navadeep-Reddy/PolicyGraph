@@ -10,13 +10,16 @@ const selection = { id: true, policyId: true, sourceType: true, sourceClauseKey:
   sourceArtifact: { select: { name: true } }, targetArtifact: { select: { name: true } } } satisfies Prisma.DependencyEdgeSelect;
 
 type Edge = Prisma.DependencyEdgeGetPayload<{ select: typeof selection }>;
+const suggestionSelection = { id: true, policyId: true, sourceType: true, sourceClauseKey: true, sourceArtifactId: true,
+  targetArtifactId: true, relationshipType: true, status: true, origin: true, rationale: true } satisfies Prisma.DependencyEdgeSelect;
+type SuggestedEdge = Prisma.DependencyEdgeGetPayload<{ select: typeof suggestionSelection }>;
 function prismaErrorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
 }
 function toDto(edge: Edge): DependencyDto {
   return { id: edge.id, policyId: edge.policyId, sourceType: edge.sourceType, sourceClauseKey: edge.sourceClauseKey,
-    sourceArtifactId: edge.sourceArtifactId, sourceLabel: edge.sourceType === 'CLAUSE' ? edge.sourceClauseKey! : edge.sourceArtifact!.name,
-    targetArtifactId: edge.targetArtifactId, targetLabel: edge.targetArtifact.name,
+    sourceArtifactId: edge.sourceArtifactId, sourceLabel: edge.sourceType === 'CLAUSE' ? edge.sourceClauseKey ?? '' : edge.sourceArtifact?.name ?? edge.sourceArtifactId ?? '',
+    targetArtifactId: edge.targetArtifactId, targetLabel: edge.targetArtifact?.name ?? edge.targetArtifactId,
     relationshipType: edge.relationshipType, status: edge.status, origin: edge.origin, rationale: edge.rationale };
 }
 function identity(edge: { sourceType: string; sourceClauseKey: string | null; sourceArtifactId: string | null; targetArtifactId: string; relationshipType: string }): string {
@@ -55,11 +58,33 @@ export class DependenciesService {
       identities.add(key); accepted.push(suggestion);
     }
     if (!accepted.length) return { created: [], skipped };
-    const createdRows = await this.prisma.$transaction(async (tx) => Promise.all(accepted.map((suggestion) => tx.dependencyEdge.create({ data: {
-      policyId, sourceType: suggestion.sourceType, sourceClauseKey: suggestion.sourceClauseKey, sourceArtifactId: suggestion.sourceArtifactId,
-      targetArtifactId: suggestion.targetArtifactId, relationshipType: suggestion.relationshipType, rationale: suggestion.rationale, status: 'PROPOSED', origin: 'AI',
-    }, select: selection }))), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    return { created: createdRows.map(toDto), skipped };
+    const createdRows = await this.prisma.$transaction(async (tx) => {
+      const currentRows = await tx.dependencyEdge.findMany({ where: { policyId }, select: { sourceType: true, sourceClauseKey: true, sourceArtifactId: true, targetArtifactId: true, relationshipType: true } });
+      const currentIdentities = new Set(currentRows.map(identity));
+      const toCreate = accepted.filter((suggestion) => {
+        const key = identity(suggestion);
+        if (currentIdentities.has(key)) { skipped++; return false; }
+        currentIdentities.add(key);
+        return true;
+      });
+      if (!toCreate.length) return [] as SuggestedEdge[];
+      return tx.dependencyEdge.createManyAndReturn({ data: toCreate.map((suggestion) => ({
+        policyId, sourceType: suggestion.sourceType, sourceClauseKey: suggestion.sourceClauseKey, sourceArtifactId: suggestion.sourceArtifactId,
+        targetArtifactId: suggestion.targetArtifactId, relationshipType: suggestion.relationshipType, rationale: suggestion.rationale, status: 'PROPOSED' as const, origin: 'AI' as const,
+      })), select: suggestionSelection });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000 });
+    const rowsByIdentity = new Map(createdRows.map((row) => [identity(row), row]));
+    const created = accepted.flatMap((suggestion): DependencyDto[] => {
+      const row = rowsByIdentity.get(identity(suggestion));
+      if (!row) return [];
+      const sourceArtifact = row.sourceArtifactId === null ? undefined : artifacts.find((item) => item.id === row.sourceArtifactId);
+      const targetArtifact = artifacts.find((item) => item.id === row.targetArtifactId);
+      return [{ id: row.id, policyId: row.policyId, sourceType: row.sourceType, sourceClauseKey: row.sourceClauseKey,
+        sourceArtifactId: row.sourceArtifactId, sourceLabel: row.sourceType === 'CLAUSE' ? row.sourceClauseKey ?? '' : sourceArtifact?.name ?? row.sourceArtifactId ?? '',
+        targetArtifactId: row.targetArtifactId, targetLabel: targetArtifact?.name ?? row.targetArtifactId,
+        relationshipType: row.relationshipType, status: row.status, origin: row.origin, rationale: row.rationale }];
+    });
+    return { created, skipped };
   }
 
   async list(policyId: string, status?: 'PROPOSED' | 'APPROVED' | 'REJECTED'): Promise<DependencyDto[]> {

@@ -13,7 +13,7 @@ function setup() {
     policy: { findUnique: vi.fn() }, clause: { findFirst: vi.fn() },
     policyVersion: { findFirst: vi.fn() },
     artifact: { findUnique: vi.fn(), findMany: vi.fn() },
-    dependencyEdge: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+     dependencyEdge: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), createManyAndReturn: vi.fn(), update: vi.fn(), delete: vi.fn() },
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
   };
   return { service: new DependenciesService(prisma as never, suggestions as unknown as DependencySuggestionService), prisma, suggestions };
@@ -37,6 +37,12 @@ function createdEdge(data: Record<string, unknown>, index: number) {
   const sourceArtifact = data.sourceArtifactId === 'a2' ? items[1] : null;
   const targetArtifact = items.find((item) => item.id === data.targetArtifactId)!;
   return { id: `created-${index}`, policyId: data.policyId, ...data, sourceArtifact, targetArtifact };
+}
+function bulkRows(data: Record<string, unknown>[]) {
+  return data.map((item, index) => {
+    const { sourceArtifact: _sourceArtifact, targetArtifact: _targetArtifact, ...scalar } = createdEdge(item, index + 1);
+    return scalar;
+  });
 }
 
 describe('DependenciesService', () => {
@@ -64,14 +70,44 @@ describe('DependenciesService', () => {
     const { service, prisma, suggestions } = mockSuggestionSetup();
     const ordered = [clauseSuggestion({ targetArtifactId: 'a2', rationale: 'Second' }), clauseSuggestion({ relationshipType: 'GOVERNS', rationale: 'First' })];
     suggestions.suggest.mockResolvedValue(ordered);
-    prisma.dependencyEdge.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => createdEdge(data, prisma.dependencyEdge.create.mock.calls.length));
+    prisma.dependencyEdge.createManyAndReturn.mockImplementation(async ({ data }: { data: Record<string, unknown>[] }) => bulkRows(data));
     const result = await service.suggest('p1');
-    expect(prisma.dependencyEdge.create).toHaveBeenCalledTimes(2);
-    expect(prisma.dependencyEdge.create.mock.calls.map(([arg]) => arg.data)).toEqual(ordered.map((suggestion) => ({ ...suggestion, policyId: 'p1', status: 'PROPOSED', origin: 'AI' })));
+    expect(prisma.dependencyEdge.createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(prisma.dependencyEdge.create).not.toHaveBeenCalled();
+    expect(prisma.dependencyEdge.createManyAndReturn.mock.calls[0][0].data).toEqual(ordered.map((suggestion) => ({ ...suggestion, policyId: 'p1', status: 'PROPOSED', origin: 'AI' })));
     expect(result).toEqual({ skipped: 0, created: [
       { id: 'created-1', policyId: 'p1', sourceType: 'CLAUSE', sourceClauseKey: 'KEY', sourceArtifactId: null, sourceLabel: 'KEY', targetArtifactId: 'a2', targetLabel: 'Item two', relationshipType: 'UPDATES', status: 'PROPOSED', origin: 'AI', rationale: 'Second' },
       { id: 'created-2', policyId: 'p1', sourceType: 'CLAUSE', sourceClauseKey: 'KEY', sourceArtifactId: null, sourceLabel: 'KEY', targetArtifactId: 'a1', targetLabel: 'Item one', relationshipType: 'GOVERNS', status: 'PROPOSED', origin: 'AI', rationale: 'First' },
     ] });
+  });
+
+  it('waits for AI before opening a transaction, skips concurrent duplicates, persists atomically in order, and propagates rollback errors', async () => {
+    const { service, prisma, suggestions } = mockSuggestionSetup();
+    let resolveSuggestions!: (value: ReturnType<typeof clauseSuggestion>[]) => void;
+    suggestions.suggest.mockReturnValue(new Promise((resolve) => { resolveSuggestions = resolve; }));
+    const pending = service.suggest('p1');
+    await Promise.resolve();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+
+    const first = clauseSuggestion({ targetArtifactId: 'a1' });
+    const second = clauseSuggestion({ targetArtifactId: 'a2' });
+    resolveSuggestions([first, second]);
+    prisma.dependencyEdge.createManyAndReturn.mockImplementation(async ({ data }: { data: Record<string, unknown>[] }) => bulkRows([...data].reverse()));
+    prisma.$transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) => {
+      prisma.dependencyEdge.findMany.mockResolvedValueOnce([{ ...first }]);
+      return fn(prisma);
+    });
+    const result = await pending;
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction.mock.calls[0][1]).toEqual({ isolationLevel: 'Serializable', maxWait: 10_000 });
+    expect(result.skipped).toBe(1);
+    expect(result.created.map((item) => item.targetArtifactId)).toEqual(['a2']);
+    expect(prisma.dependencyEdge.createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(prisma.dependencyEdge.create).not.toHaveBeenCalled();
+
+    const failure = new Error('transaction failed');
+    prisma.$transaction.mockRejectedValueOnce(failure);
+    await expect(service.suggest('p1')).rejects.toBe(failure);
   });
 
   it('skips unknown references, self-links, existing and in-batch duplicates while retaining valid suggestion order', async () => {
@@ -89,11 +125,30 @@ describe('DependenciesService', () => {
       clauseSuggestion({ targetArtifactId: 'a2', relationshipType: 'UPDATES' }),
     ];
     suggestions.suggest.mockResolvedValue(batch);
-    prisma.dependencyEdge.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => createdEdge(data, prisma.dependencyEdge.create.mock.calls.length));
+    prisma.dependencyEdge.createManyAndReturn.mockImplementation(async ({ data }: { data: Record<string, unknown>[] }) => bulkRows(data));
     const result = await service.suggest('p1');
     expect(result.skipped).toBe(6);
     expect(result.created.map((created) => [created.targetArtifactId, created.relationshipType])).toEqual([['a2', 'GOVERNS'], ['a2', 'UPDATES']]);
-    expect(prisma.dependencyEdge.create).toHaveBeenCalledTimes(2);
+    expect(prisma.dependencyEdge.createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(prisma.dependencyEdge.create).not.toHaveBeenCalled();
+  });
+
+  it('does not call bulk persistence when filtering leaves no accepted suggestions', async () => {
+    const { service, prisma, suggestions } = mockSuggestionSetup();
+    suggestions.suggest.mockResolvedValue([clauseSuggestion({ sourceClauseKey: 'unknown' })]);
+    expect(await service.suggest('p1')).toEqual({ created: [], skipped: 1 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.dependencyEdge.createManyAndReturn).not.toHaveBeenCalled();
+  });
+
+  it('propagates a bulk persistence failure so the transaction rolls back', async () => {
+    const { service, prisma, suggestions } = mockSuggestionSetup();
+    suggestions.suggest.mockResolvedValue([clauseSuggestion()]);
+    const failure = new Error('bulk insert failed');
+    prisma.dependencyEdge.createManyAndReturn.mockRejectedValue(failure);
+    await expect(service.suggest('p1')).rejects.toBe(failure);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.dependencyEdge.create).not.toHaveBeenCalled();
   });
 
   it('does not write if the provider suggestion service fails', async () => {
@@ -102,7 +157,7 @@ describe('DependenciesService', () => {
     suggestions.suggest.mockRejectedValue(failure);
     await expect(service.suggest('p1')).rejects.toBe(failure);
     expect(prisma.dependencyEdge.create).not.toHaveBeenCalled();
-    expect(prisma.dependencyEdge.createMany).toBeUndefined();
+    expect(prisma.dependencyEdge.createManyAndReturn).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

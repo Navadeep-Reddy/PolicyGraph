@@ -1,0 +1,43 @@
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +12ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAiModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mGraphModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mItemsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mImpactModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPoliciesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDependenciesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +4ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPoliciesController {/policies}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id/revisions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVersionsController {/versions}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/clauses, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/publish, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/clauses/:clauseId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/clauses/:clauseId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/changes, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mGraphController {/policies}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id/graph, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mImpactController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/impact-runs, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/impact-runs/:impactRunId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/versions/:versionId/impact-runs, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/impact-results/:impactResultId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mItemsController {/items}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/items, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/items, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/items/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/items/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDependenciesController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id/dependencies, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id/dependencies, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/policies/:id/dependency-suggestions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dependencies/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dependencies/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 21981  - [39m16/10/2026, 12:57:34 am [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +54ms[39m

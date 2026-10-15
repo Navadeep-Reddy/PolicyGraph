@@ -61,14 +61,14 @@ scaffold
 
 ### Impact
 
-- [ ] B-18 `[BACKEND]` BFS as a pure function with tests: direct, indirect, cycle, `PROPOSED`/`REJECTED` ignored, disconnected, duplicate paths
-- [ ] B-19 `[BACKEND]` Reason generation from a path (template, no AI)
-- [ ] B-20 `[BACKEND]` `POST /versions/:versionId/impact-runs`, `GET /impact-runs/:id`, `GET /versions/:versionId/impact-runs`; persist run, path, distance, reason
-- [ ] B-21 `[BACKEND]` `PATCH /impact-results/:id` (review status and comment)
+- [x] B-18 `[BACKEND]` BFS as a pure function with tests: direct, indirect, cycle, `PROPOSED`/`REJECTED` ignored, disconnected, duplicate paths
+- [x] B-19 `[BACKEND]` Reason generation from a path (template, no AI)
+- [x] B-20 `[BACKEND]` `POST /versions/:versionId/impact-runs`, `GET /impact-runs/:id`, `GET /versions/:versionId/impact-runs`; persist run, path, distance, reason
+- [x] B-21 `[BACKEND]` `PATCH /impact-results/:id` (review status and comment)
 
 ### Finish
 
-- [ ] B-22 `[BACKEND]` `npm run lint`, `npm test`, `npm run build` all pass
+- [x] B-22 `[BACKEND]` `npm run lint`, `npm test`, `npm run build` all pass
 
 **Backend exit:** every endpoint in `API_CONTRACT.md` responds with the documented shape against an empty database.
 

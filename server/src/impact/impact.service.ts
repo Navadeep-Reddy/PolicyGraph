@@ -1,30 +1,25 @@
-import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ContractHttpException } from '../common/contract-http.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { classifyClauseChanges } from '../policies/change-classifier.js';
 import type { ClauseChangeDto } from '../policies/dto.js';
 import { relationshipLabel, type GraphEdgeDto, type GraphNodeDto } from '../graph/dto.js';
-import { GraphService } from '../graph/graph.service.js';
 import { runImpactBfs, type ImpactPath } from './bfs.js';
+import { buildImpactReason } from './reason-builder.js';
 import type { ImpactReportDto, ImpactResultDto, ReviewStatus } from './dto.js';
 
 interface StoredPath {
-  nodes: GraphNodeDto[];
-  edges: GraphEdgeDto[];
+  nodes: { id: string; type: 'CLAUSE' | 'ARTIFACT'; label: string }[];
+  edges: { id: string; relationshipType: string }[];
 }
 
 @Injectable()
 export class ImpactService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly graphService: GraphService,
   ) {}
 
-  // Creates an impact run for a (draft) version: determines changed clauses,
-  // runs BFS from the ACTIVE predecessor clause nodes (edges are anchored to
-  // the ACTIVE clause), then persists the run and its results atomically.
-  // The ImpactRun stays linked to the requested draft version.
   async createImpactRun(versionId: string): Promise<ImpactReportDto> {
     const version = await this.prisma.policyVersion.findUnique({
       where: { id: versionId },
@@ -33,34 +28,20 @@ export class ImpactService {
     if (!version) {
       throw new NotFoundException(`Policy version ${versionId} not found`);
     }
-    const activeVersion = await this.prisma.policyVersion.findFirst({
-      where: { policyId: version.policyId, status: 'ACTIVE' },
+    const baseVersion = await this.prisma.policyVersion.findFirst({
+      where: { policyId: version.policyId, versionNumber: { lt: version.versionNumber } },
+      orderBy: { versionNumber: 'desc' },
       include: { clauses: true },
     });
-    if (!activeVersion) {
-      throw new ContractHttpException('NO_BASE_VERSION', `Policy ${version.policyId} has no active version`, HttpStatus.CONFLICT);
+    if (!baseVersion) {
+      throw new ContractHttpException('NO_BASE_VERSION', `Policy version ${versionId} has no earlier version`, HttpStatus.CONFLICT);
     }
 
-    const changes = classifyClauseChanges(activeVersion.clauses, version.clauses);
+    const changes = classifyClauseChanges(baseVersion.clauses, version.clauses);
     const changedClauses = changes.filter(
-      (change) => change.changeType === 'MODIFIED' || change.changeType === 'ADDED',
+      (change) => change.changeType === 'MODIFIED' || change.changeType === 'REMOVED',
     );
-    if (changedClauses.length === 0) {
-      throw new BadRequestException('Version has no changed clauses; nothing to analyze');
-    }
-
-    // Dependency edges are anchored to the ACTIVE clause, so each changed
-    // draft clause is matched by stableKey to its ACTIVE predecessor and
-    // traversal starts at that predecessor node.
-    const activeByStableKey = new Map(activeVersion.clauses.map((clause) => [clause.stableKey, clause]));
-    const traversableChanges = changedClauses.filter((change) =>
-      activeByStableKey.has(change.stableKey),
-    );
-    if (traversableChanges.length === 0) {
-      throw new BadRequestException(
-        'Changed clauses have no active predecessor to traverse from',
-      );
-    }
+    const traversableChanges = changedClauses;
 
     const edges = await this.prisma.dependencyEdge.findMany({
       where: { policyId: version.policyId },
@@ -72,7 +53,6 @@ export class ImpactService {
     const artifactsById = new Map(artifacts.map((artifact) => [artifact.id, artifact]));
     const edgesById = new Map(edges.map((edge) => [edge.id, edge]));
 
-    const startNodeIds = traversableChanges.map((change) => `clause:${change.stableKey}`);
     const traversalEdges = edges.map((edge) => ({
       id: edge.id,
       sourceNodeId: edge.sourceType === 'CLAUSE' ? `clause:${edge.sourceClauseKey}` : `artifact:${edge.sourceArtifactId}`,
@@ -80,28 +60,23 @@ export class ImpactService {
       status: edge.status,
     }));
     const paths = runImpactBfs(
-      startNodeIds,
+      traversableChanges.map((change) => ({ stableKey: change.stableKey, changeType: change.changeType })),
       traversalEdges,
       new Set([...artifactsById.keys()].map((id) => `artifact:${id}`)),
     );
     const orderedPaths = this.sortPaths(paths, artifactsById);
 
-    const originByStartNodeId = new Map(
-      traversableChanges.map((change) => [
-        `clause:${change.stableKey}`,
-        change,
-      ]),
-    );
-    const clausesById = new Map(activeVersion.clauses.map((clause) => [`clause:${clause.stableKey}`, clause]));
+    const originByStartNodeId = new Map(traversableChanges.map((change) => [change.stableKey, change]));
+    const clausesById = new Map(baseVersion.clauses.map((clause) => [`clause:${clause.stableKey}`, clause]));
 
     const created = await this.prisma.$transaction(async (transaction) => {
       const run = await transaction.impactRun.create({
-        data: { policyVersionId: version.id, baseVersionId: activeVersion.id },
+        data: { policyVersionId: version.id, baseVersionId: baseVersion.id },
       });
       if (orderedPaths.length > 0) {
         await transaction.impactResult.createMany({
           data: orderedPaths.map((path) => {
-            const origin = originByStartNodeId.get(path.pathNodeIds[0] as string);
+            const origin = originByStartNodeId.get(path.changedClauseKey);
             const artifact = artifactsById.get(path.artifactId);
             if (!origin || !artifact) {
               throw new BadRequestException('Impact path references an unknown node');
@@ -109,21 +84,19 @@ export class ImpactService {
             // Stored inline per MVP_SPEC: pathJson holds the ordered nodes
             // and edges directly. Round-tripped through JSON so the value
             // satisfies the Prisma Json input type.
-            const pathJson = JSON.parse(
-              JSON.stringify({
-                nodes: this.buildPathNodes(path.pathNodeIds, clausesById, artifactsById),
-                edges: path.pathEdgeIds.map((edgeId) =>
-                  this.toGraphEdgeDto(edgesById.get(edgeId)),
-                ),
-              }),
-            ) as Prisma.InputJsonValue;
             return {
               impactRunId: run.id,
               changedClauseKey: origin.stableKey,
               artifactId: path.artifactId,
               distance: path.distance,
-              pathJson,
-              reason: this.buildReason(origin.changeType, origin.stableKey, path.distance),
+              pathJson: JSON.parse(JSON.stringify({
+                nodes: this.buildPathNodes(path.pathNodeIds, clausesById, artifactsById).map(({ id, nodeType, name }) => ({ id, type: nodeType, label: name })),
+                edges: path.pathEdgeIds.map((edgeId) => this.toGraphEdgeDto(edgesById.get(edgeId))).map(({ id, relationshipType }) => ({ id, relationshipType })),
+              })) as Prisma.InputJsonValue,
+              reason: buildImpactReason(origin.changeType as 'MODIFIED' | 'REMOVED', origin.stableKey, artifact.name, {
+                nodes: this.buildPathNodes(path.pathNodeIds, clausesById, artifactsById),
+                edges: path.pathEdgeIds.map((edgeId) => this.toGraphEdgeDto(edgesById.get(edgeId))),
+              }),
               reviewStatus: 'PROPOSED' as const,
             };
           }),
@@ -148,14 +121,14 @@ export class ImpactService {
     if (!run) {
       throw new NotFoundException(`Impact run ${impactRunId} not found`);
     }
-    const activeVersion = await this.prisma.policyVersion.findFirst({
-      where: { policyId: run.policyVersion.policyId, status: 'ACTIVE' },
+    const baseVersion = await this.prisma.policyVersion.findUnique({
+      where: { id: run.baseVersionId },
       include: { clauses: true },
     });
-    if (!activeVersion) {
-      throw new NotFoundException(`Policy ${run.policyVersion.policyId} has no active version`);
+    if (!baseVersion || baseVersion.policyId !== run.policyVersion.policyId) {
+      throw new NotFoundException(`Base version ${run.baseVersionId} not found`);
     }
-    const changes = classifyClauseChanges(activeVersion.clauses, run.policyVersion.clauses);
+    const changes = classifyClauseChanges(baseVersion.clauses, run.policyVersion.clauses);
     const changeSummary: ClauseChangeDto[] = changes.map((change) => ({
       stableKey: change.stableKey,
       changeType: change.changeType,
@@ -180,19 +153,27 @@ export class ImpactService {
           }
         : null,
     }));
-    const graph = await this.graphService.getPolicyGraph(run.policyVersion.policyId);
     const results = run.results
       .map((result) => this.toImpactResultDto(result))
-      .sort((a, b) => a.distance - b.distance || a.artifact.name.localeCompare(b.artifact.name));
+      .sort((a, b) => a.artifact.department.localeCompare(b.artifact.department) || a.artifact.name.localeCompare(b.artifact.name) || a.changedClauseKey.localeCompare(b.changedClauseKey));
     return {
       id: run.id,
-      policyVersionId: run.policyVersionId,
       policyId: run.policyVersion.policyId,
+      policyTitle: run.policyVersion.policy.title,
+      versionId: run.policyVersionId,
+      baseVersionId: run.baseVersionId,
       createdAt: run.createdAt.toISOString(),
-      changeSummary,
-      graph,
+      changedClauses: changeSummary.map((change) => ({ stableKey: change.stableKey, changeType: change.changeType, oldText: change.activeClause?.text ?? null, newText: change.draftClause?.text ?? null })),
+      affectedDepartments: [...new Set(results.map((result) => result.artifact.department))].sort(),
       results,
     };
+  }
+
+  async listImpactRuns(versionId: string): Promise<{ id: string; createdAt: string; resultCount: number }[]> {
+    const version = await this.prisma.policyVersion.findUnique({ where: { id: versionId }, select: { id: true } });
+    if (!version) throw new NotFoundException(`Policy version ${versionId} not found`);
+    const runs = await this.prisma.impactRun.findMany({ where: { policyVersionId: versionId }, include: { _count: { select: { results: true } } }, orderBy: { createdAt: 'desc' } });
+    return runs.map((run) => ({ id: run.id, createdAt: run.createdAt.toISOString(), resultCount: run._count.results }));
   }
 
   // Human review persists the status/comment and returns the updated DTO.
@@ -229,11 +210,6 @@ export class ImpactService {
           artifactsById.get(b.artifactId)?.name ?? '',
         ),
     );
-  }
-
-  private buildReason(changeType: string, stableKey: string, distance: number): string {
-    const hops = distance === 1 ? '1 hop' : `${distance} hops`;
-    return `Downstream of ${changeType} clause ${stableKey} (${hops})`;
   }
 
   private buildPathNodes(
@@ -303,15 +279,15 @@ export class ImpactService {
       department: string;
     };
   }): ImpactResultDto {
-    const path = result.pathJson as unknown as StoredPath;
+    const path = this.validateStoredPath(result.pathJson);
     return {
       id: result.id,
+      changedClauseKey: (result as typeof result & { changedClauseKey: string }).changedClauseKey,
       artifact: {
         id: result.artifact.id,
         name: result.artifact.name,
         type: result.artifact.type,
         department: result.artifact.department,
-        description: result.artifact.description,
       },
       distance: result.distance,
       reason: result.reason,
@@ -319,5 +295,22 @@ export class ImpactService {
       reviewComment: result.reviewComment,
       path: { nodes: path.nodes, edges: path.edges },
     };
+  }
+
+  private validateStoredPath(value: unknown): StoredPath {
+    if (!value || typeof value !== 'object' || !('nodes' in value) || !('edges' in value)
+      || !Array.isArray(value.nodes) || !Array.isArray(value.edges)
+      || value.nodes.length < 2 || value.edges.length !== value.nodes.length - 1
+      || !value.nodes.every((node) => node && typeof node === 'object' && typeof node.id === 'string' && typeof node.label === 'string' && (node.type === 'CLAUSE' || node.type === 'ARTIFACT'))
+      || !value.edges.every((edge) => edge && typeof edge === 'object' && typeof edge.id === 'string' && typeof edge.relationshipType === 'string')) {
+      throw new InternalServerErrorException('Persisted impact path is corrupt');
+    }
+    const nodes = value.nodes as Record<string, unknown>[];
+    const edges = value.edges as Record<string, unknown>[];
+    if (!nodes.every((node) => typeof node.type === 'string' && typeof node.label === 'string')
+      || !edges.every((edge) => ['GOVERNS', 'UPDATES', 'APPEARS_IN'].includes(String(edge.relationshipType)))) {
+      throw new InternalServerErrorException('Persisted impact path is corrupt');
+    }
+    return value as unknown as StoredPath;
   }
 }

@@ -16,6 +16,11 @@ export class ImpactController {
     return this.impactService.getImpactRun(impactRunId);
   }
 
+  @Get('versions/:versionId/impact-runs')
+  listImpactRuns(@Param('versionId') versionId: string) {
+    return this.impactService.listImpactRuns(versionId);
+  }
+
   @Patch('impact-results/:impactResultId')
   updateImpactResult(
     @Param('impactResultId') impactResultId: string,

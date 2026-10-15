@@ -1,7 +1,8 @@
 ---
 description: Fast, read-only CareSync monorepo reconnaissance agent.
 mode: subagent
-model: opencode/mimo-v2.6-flash-free
+model: openai/gpt-6-luna
+variant: medium
 permission:
   edit: deny
   read: allow

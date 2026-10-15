@@ -1,12 +1,9 @@
-// Pure BFS impact traversal for the PolicyGraph one-day MVP.
-//
-// Implements MVP_SPEC.md section 7 as backend domain logic with no NestJS,
-// HTTP, or Prisma dependencies:
-// - outgoing traversal only (edges are followed source -> target)
-// - only APPROVED edges
-// - cycle-safe via a visited set
-// - first visit wins, which yields the shortest unweighted path under BFS
-// - one result per artifact, holding a single complete ordered path
+export type TraversalChangeType = 'ADDED' | 'REMOVED' | 'MODIFIED' | 'UNCHANGED';
+
+export interface TraversalChange {
+  stableKey: string;
+  changeType: TraversalChangeType;
+}
 
 export interface TraversalEdge {
   id: string;
@@ -16,71 +13,66 @@ export interface TraversalEdge {
 }
 
 export interface ImpactPath {
+  changedClauseKey: string;
   artifactId: string;
   distance: number;
   pathNodeIds: string[];
   pathEdgeIds: string[];
 }
 
-// An edge participates in impact analysis only when it is APPROVED.
+const compare = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
+
 export function isEdgeEligible(edge: TraversalEdge): boolean {
   return edge.status === 'APPROVED';
 }
 
-// Multi-source BFS starting from the changed (ACTIVE predecessor) clause
-// node ids. Artifact nodes may also be intermediate sources (e.g. a form
-// consumed by a software rule), so every unvisited target is enqueued while
-// only artifact targets produce results.
+/** Deterministic per-changed-clause BFS over canonical clause:/artifact: node ids. */
 export function runImpactBfs(
-  startNodeIds: readonly string[],
+  changes: readonly TraversalChange[],
   edges: readonly TraversalEdge[],
   artifactIds: ReadonlySet<string>,
 ): ImpactPath[] {
   const outgoingBySource = new Map<string, TraversalEdge[]>();
   for (const edge of edges) {
-    const outgoing = outgoingBySource.get(edge.sourceNodeId);
-    if (outgoing) {
-      outgoing.push(edge);
-    } else {
-      outgoingBySource.set(edge.sourceNodeId, [edge]);
-    }
+    if (!isEdgeEligible(edge)) continue;
+    const outgoing = outgoingBySource.get(edge.sourceNodeId) ?? [];
+    outgoing.push(edge);
+    outgoingBySource.set(edge.sourceNodeId, outgoing);
+  }
+  for (const outgoing of outgoingBySource.values()) {
+    outgoing.sort((a, b) => compare(a.targetNodeId, b.targetNodeId) || compare(a.id, b.id));
   }
 
-  const visited = new Set<string>(startNodeIds);
-  const queue: { nodeId: string; pathNodeIds: string[]; pathEdgeIds: string[] }[] =
-    startNodeIds.map((nodeId) => ({ nodeId, pathNodeIds: [nodeId], pathEdgeIds: [] }));
-  const results = new Map<string, ImpactPath>();
+  const eligibleChanges = changes
+    .filter(({ changeType }) => changeType === 'MODIFIED' || changeType === 'REMOVED')
+    .slice()
+    .sort((a, b) => compare(a.stableKey, b.stableKey));
+  const results: ImpactPath[] = [];
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      break;
-    }
-    for (const edge of outgoingBySource.get(current.nodeId) ?? []) {
-      if (!isEdgeEligible(edge)) {
-        continue;
+  for (const change of eligibleChanges) {
+    const start = `clause:${change.stableKey}`;
+    const visited = new Set<string>([start]);
+    const queue: { nodeId: string; pathNodeIds: string[]; pathEdgeIds: string[] }[] = [
+      { nodeId: start, pathNodeIds: [start], pathEdgeIds: [] },
+    ];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      if (!current) continue;
+      for (const edge of outgoingBySource.get(current.nodeId) ?? []) {
+        const nextNodeId = edge.targetNodeId;
+        if (visited.has(nextNodeId)) continue;
+        visited.add(nextNodeId);
+        const pathNodeIds = [...current.pathNodeIds, nextNodeId];
+        const pathEdgeIds = [...current.pathEdgeIds, edge.id];
+        if (nextNodeId.startsWith('artifact:')) {
+          const artifactId = nextNodeId.slice('artifact:'.length);
+          if (artifactIds.has(nextNodeId) || artifactIds.has(artifactId)) {
+            results.push({ changedClauseKey: change.stableKey, artifactId, distance: pathEdgeIds.length, pathNodeIds, pathEdgeIds });
+          }
+        }
+        queue.push({ nodeId: nextNodeId, pathNodeIds, pathEdgeIds });
       }
-      const nextNodeId = edge.targetNodeId;
-      if (visited.has(nextNodeId)) {
-        continue;
-      }
-      visited.add(nextNodeId);
-      const pathNodeIds = [...current.pathNodeIds, nextNodeId];
-      const pathEdgeIds = [...current.pathEdgeIds, edge.id];
-      const artifactId = nextNodeId.startsWith('artifact:')
-        ? nextNodeId.slice('artifact:'.length)
-        : nextNodeId;
-      if ((artifactIds.has(nextNodeId) || artifactIds.has(artifactId)) && !results.has(nextNodeId)) {
-        results.set(nextNodeId, {
-          artifactId,
-          distance: pathEdgeIds.length,
-          pathNodeIds,
-          pathEdgeIds,
-        });
-      }
-      queue.push({ nodeId: nextNodeId, pathNodeIds, pathEdgeIds });
     }
   }
-
-  return [...results.values()];
+  return results.sort((a, b) => a.distance - b.distance || compare(a.changedClauseKey, b.changedClauseKey) || compare(a.artifactId, b.artifactId));
 }

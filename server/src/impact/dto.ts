@@ -1,6 +1,4 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { PolicyGraphDto, GraphEdgeDto, GraphNodeDto } from '../graph/dto.js';
-import type { ClauseChangeDto } from '../policies/dto.js';
+import { IsIn, IsString, MaxLength, ValidateIf } from 'class-validator';
 
 export const REVIEW_STATUSES = ['PROPOSED', 'CONFIRMED', 'DISMISSED', 'RESOLVED'] as const;
 
@@ -11,7 +9,7 @@ export class UpdateReviewDto {
   @IsIn([...REVIEW_STATUSES])
   reviewStatus!: ReviewStatus;
 
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsString()
   @MaxLength(2000)
   reviewComment?: string;
@@ -22,28 +20,30 @@ export interface ImpactResultArtifactDto {
   name: string;
   type: 'FORM' | 'PROCEDURE' | 'CHECKLIST' | 'TRAINING_MATERIAL' | 'DEPARTMENT_INSTRUCTION' | 'INFORMATION_SHEET';
   department: string;
-  description: string | null;
 }
 
 export interface ImpactResultDto {
   id: string;
+  changedClauseKey: string;
   artifact: ImpactResultArtifactDto;
   distance: number;
   reason: string;
   reviewStatus: ReviewStatus;
   reviewComment: string | null;
   path: {
-    nodes: GraphNodeDto[];
-    edges: GraphEdgeDto[];
+    nodes: { id: string; type: 'CLAUSE' | 'ARTIFACT'; label: string }[];
+    edges: { id: string; relationshipType: string }[];
   };
 }
 
 export interface ImpactReportDto {
   id: string;
-  policyVersionId: string;
   policyId: string;
+  policyTitle: string;
+  versionId: string;
+  baseVersionId: string;
   createdAt: string;
-  changeSummary: ClauseChangeDto[];
-  graph: PolicyGraphDto;
+  changedClauses: { stableKey: string; changeType: string; oldText: string | null; newText: string | null }[];
+  affectedDepartments: string[];
   results: ImpactResultDto[];
 }

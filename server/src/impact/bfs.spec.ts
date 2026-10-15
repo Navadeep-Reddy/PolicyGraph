@@ -1,102 +1,51 @@
-import { runImpactBfs, type TraversalEdge } from './bfs.js';
+import { runImpactBfs, type TraversalChange, type TraversalEdge } from './bfs.js';
 
-function approvedEdge(id: string, sourceNodeId: string, targetNodeId: string): TraversalEdge {
-  return { id, sourceNodeId, targetNodeId, status: 'APPROVED' };
-}
+const changed: TraversalChange[] = [{ stableKey: 'K', changeType: 'MODIFIED' }];
+const edge = (id: string, sourceNodeId: string, targetNodeId: string, status = 'APPROVED'): TraversalEdge => ({ id, sourceNodeId, targetNodeId, status });
+const artifacts = (...ids: string[]) => new Set(ids.map((id) => `artifact:${id}`));
 
 describe('runImpactBfs', () => {
-  it('finds a direct dependency at distance 1', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [approvedEdge('e1', 'clause-1', 'artifact-form')],
-      new Set(['artifact-form']),
-    );
-    expect(results).toEqual([
-      {
-        artifactId: 'artifact-form',
-        distance: 1,
-        pathNodeIds: ['clause-1', 'artifact-form'],
-        pathEdgeIds: ['e1'],
-      },
+  it('finds direct and indirect dependencies with complete ordered paths and edge-count distances', () => {
+    expect(runImpactBfs(changed, [edge('e1', 'clause:K', 'artifact:a'), edge('e2', 'artifact:a', 'artifact:b')], artifacts('a', 'b'))).toEqual([
+      { changedClauseKey: 'K', artifactId: 'a', distance: 1, pathNodeIds: ['clause:K', 'artifact:a'], pathEdgeIds: ['e1'] },
+      { changedClauseKey: 'K', artifactId: 'b', distance: 2, pathNodeIds: ['clause:K', 'artifact:a', 'artifact:b'], pathEdgeIds: ['e1', 'e2'] },
     ]);
   });
 
-  it('finds an indirect two-hop dependency with the complete ordered path', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [
-        approvedEdge('e1', 'clause-1', 'artifact-form'),
-        approvedEdge('e2', 'artifact-form', 'artifact-rule'),
-      ],
-      new Set(['artifact-form', 'artifact-rule']),
-    );
-    const rule = results.find((result) => result.artifactId === 'artifact-rule');
-    expect(rule).toEqual({
-      artifactId: 'artifact-rule',
-      distance: 2,
-      pathNodeIds: ['clause-1', 'artifact-form', 'artifact-rule'],
-      pathEdgeIds: ['e1', 'e2'],
-    });
+  it('is cycle-safe and ignores PROPOSED and REJECTED edges', () => {
+    const results = runImpactBfs(changed, [edge('a', 'clause:K', 'artifact:a'), edge('b', 'artifact:a', 'artifact:b'), edge('cycle', 'artifact:b', 'artifact:a'), edge('back', 'artifact:b', 'clause:K'), edge('p', 'clause:K', 'artifact:p', 'PROPOSED'), edge('r', 'clause:K', 'artifact:r', 'REJECTED')], artifacts('a', 'b', 'p', 'r'));
+    expect(results.map(({ artifactId }) => artifactId)).toEqual(['a', 'b']);
   });
 
-  it('prevents cycles from looping traversal', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [
-        approvedEdge('e1', 'clause-1', 'artifact-a'),
-        approvedEdge('e2', 'artifact-a', 'artifact-b'),
-        approvedEdge('e3', 'artifact-b', 'artifact-a'),
-        approvedEdge('e4', 'artifact-b', 'clause-1'),
-      ],
-      new Set(['artifact-a', 'artifact-b']),
-    );
-    expect(results).toHaveLength(2);
-    expect(results.find((result) => result.artifactId === 'artifact-b')?.distance).toBe(2);
+  it('omits disconnected artifacts and traverses outgoing edges only', () => {
+    expect(runImpactBfs(changed, [edge('incoming', 'artifact:a', 'clause:K')], artifacts('a'))).toEqual([]);
   });
 
-  it('ignores edges that are not APPROVED', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [
-        {
-          id: 'e1',
-          sourceNodeId: 'clause-1',
-          targetNodeId: 'artifact-form',
-          status: 'PROPOSED',
-        },
-      ],
-      new Set(['artifact-form']),
-    );
-    expect(results).toEqual([]);
+  it('deduplicates duplicate/alternative paths and deterministically selects the lexicographically first shortest path', () => {
+    const input = [edge('z', 'clause:K', 'artifact:a'), edge('b-to-target', 'artifact:b', 'artifact:t'), edge('a-to-target', 'artifact:a', 'artifact:t'), edge('a-to-target', 'artifact:a', 'artifact:t'), edge('a-start', 'clause:K', 'artifact:b')];
+    const forward = runImpactBfs(changed, input, artifacts('a', 'b', 't'));
+    const reverse = runImpactBfs(changed, [...input].reverse(), artifacts('a', 'b', 't'));
+    expect(forward).toEqual(reverse);
+    expect(forward.filter(({ artifactId }) => artifactId === 't')).toEqual([
+      { changedClauseKey: 'K', artifactId: 't', distance: 2, pathNodeIds: ['clause:K', 'artifact:a', 'artifact:t'], pathEdgeIds: ['z', 'a-to-target'] },
+    ]);
   });
 
-  it('does not report disconnected artifacts', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [approvedEdge('e1', 'clause-1', 'artifact-form')],
-      new Set(['artifact-form', 'artifact-orphan']),
-    );
-    expect(results).toHaveLength(1);
-    expect(results[0]?.artifactId).toBe('artifact-form');
+  it('emits an artifact once for each eligible changed clause and excludes ADDED/UNCHANGED starts', () => {
+    const changes: TraversalChange[] = [
+      { stableKey: 'Z', changeType: 'MODIFIED' }, { stableKey: 'A', changeType: 'REMOVED' },
+      { stableKey: 'N', changeType: 'ADDED' }, { stableKey: 'U', changeType: 'UNCHANGED' },
+    ];
+    const results = runImpactBfs(changes, [edge('a', 'clause:A', 'artifact:x'), edge('z', 'clause:Z', 'artifact:x'), edge('n', 'clause:N', 'artifact:x'), edge('u', 'clause:U', 'artifact:x')], artifacts('x'));
+    expect(results.map(({ changedClauseKey, artifactId }) => [changedClauseKey, artifactId])).toEqual([['A', 'x'], ['Z', 'x']]);
   });
 
-  it('does not duplicate an artifact reachable by multiple paths and keeps the shortest path', () => {
-    const results = runImpactBfs(
-      ['clause-1'],
-      [
-        approvedEdge('e-direct', 'clause-1', 'artifact-rule'),
-        approvedEdge('e1', 'clause-1', 'artifact-form'),
-        approvedEdge('e2', 'artifact-form', 'artifact-rule'),
-      ],
-      new Set(['artifact-form', 'artifact-rule']),
-    );
-    const rules = results.filter((result) => result.artifactId === 'artifact-rule');
-    expect(rules).toHaveLength(1);
-    expect(rules[0]).toEqual({
-      artifactId: 'artifact-rule',
-      distance: 1,
-      pathNodeIds: ['clause-1', 'artifact-rule'],
-      pathEdgeIds: ['e-direct'],
-    });
+  it('does not mutate inputs', () => {
+    const inputChanges = [...changed];
+    const inputEdges = [edge('e', 'clause:K', 'artifact:a')];
+    const inputArtifacts = artifacts('a');
+    const before = [structuredClone(inputChanges), structuredClone(inputEdges), structuredClone([...inputArtifacts])];
+    runImpactBfs(inputChanges, inputEdges, inputArtifacts);
+    expect([inputChanges, inputEdges, [...inputArtifacts]]).toEqual(before);
   });
 });
