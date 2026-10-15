@@ -17,7 +17,7 @@ export default function PathViewer({ nodes, edges, distance }: PathViewerProps) 
   const edgeByTarget = new Map(edges.map((edge) => [edge.targetNodeId, edge]));
   return (
     <div aria-label="Dependency path explanation">
-      <p className="text-[11px] font-medium text-stone-500">
+      <p className="type-label-sm text-text-muted">
         {distance === 1 ? "1 hop" : `${distance} hops`} · Approved dependencies
       </p>
       <ol className="mt-2">
@@ -26,21 +26,21 @@ export default function PathViewer({ nodes, edges, distance }: PathViewerProps) 
           return (
             <li key={node.id}>
               {incoming && (
-                <p className="flex items-center gap-2 py-1 text-[12px] text-stone-500" aria-hidden="true">
-                  <span className="ml-2 inline-block h-4 w-px bg-stone-300" />
+                <p className="type-body-sm flex items-center gap-2 py-1 text-text-muted" aria-hidden="true">
+                  <span className="ml-2 inline-block h-4 w-px bg-surface-4" />
                   <span>
                     ↓ {humanRelationshipLabel(incoming.relationshipType, incoming.relationshipLabel)}
                   </span>
                 </p>
               )}
-              <p className="rounded-lg border border-[#E6E7E4] bg-white px-3 py-2 text-[13.5px]">
+              <p className="type-body-sm rounded-inner border border-border-default bg-surface-white px-3 py-2">
                 {node.nodeType === "CLAUSE" ? (
-                  <span className="font-mono text-[12.5px] font-semibold text-[#174C3C]">
+                  <span className="type-micro-mono text-accent">
                     {node.name}
                     <span className="sr-only"> (policy clause)</span>
                   </span>
                 ) : (
-                  <span className="font-semibold text-stone-800">{node.name}</span>
+                  <span className="text-sm font-semibold text-ink">{node.name}</span>
                 )}
                 {/* Screen-reader text carries the relationship meaning. */}
                 {incoming && (

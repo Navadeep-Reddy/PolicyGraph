@@ -28,12 +28,12 @@ function MutationLine({ activeText, draftText }: { activeText: string; draftText
   const after = deadlineMention(draftText);
   if (!before || !after || before.toLowerCase() === after.toLowerCase()) return null;
   return (
-    <p className="mt-2 text-[13.5px]" aria-label={`Changed from ${before} to ${after}`}>
-      <span className="text-stone-400 line-through">{before}</span>
-      <span className="mx-1.5 text-stone-400" aria-hidden="true">
+    <p className="type-body-md mt-2" aria-label={`Changed from ${before} to ${after}`}>
+      <span className="text-text-muted line-through">{before}</span>
+      <span className="mx-1.5 text-text-muted" aria-hidden="true">
         →
       </span>
-      <span className="font-semibold text-[#D98B37]">{after}</span>
+      <span className="text-sm font-semibold text-accent">{after}</span>
     </p>
   );
 }
@@ -162,8 +162,11 @@ export default function PolicyPage() {
   if (loading) {
     return (
       <AppShell breadcrumb="Policies">
-        <div className="mx-auto max-w-5xl rounded-xl border border-[#E6E7E4] bg-white p-5" aria-live="polite">
-          <p className="text-sm text-stone-600">Loading policy…</p>
+        <div
+          className="mx-auto max-w-5xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+          aria-live="polite"
+        >
+          <p className="type-body-md text-text-secondary">Loading policy…</p>
         </div>
       </AppShell>
     );
@@ -172,12 +175,17 @@ export default function PolicyPage() {
   if (!policy) {
     return (
       <AppShell breadcrumb="Policies">
-        <div className="mx-auto max-w-5xl rounded-xl border border-[#E6E7E4] bg-white p-5" role="alert">
-          <p className="text-sm font-semibold text-stone-800">Policy not found</p>
-          <p className="mt-1 text-sm text-stone-600">{loadError || "This policy does not exist."}</p>
+        <div
+          className="mx-auto max-w-5xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+          role="alert"
+        >
+          <p className="type-item-title text-ink">Policy not found</p>
+          <p className="type-body-md mt-1 text-text-secondary">
+            {loadError || "This policy does not exist."}
+          </p>
           <Link
             to="/"
-            className="mt-3 inline-block rounded-lg px-3 py-1.5 text-sm font-medium text-[#174C3C] hover:bg-[#F0F4F1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+            className="type-body-md mt-3 inline-block px-3 py-1.5 text-accent hover:bg-surface-2"
           >
             ← Back to overview
           </Link>
@@ -191,21 +199,23 @@ export default function PolicyPage() {
       <div className="mx-auto max-w-5xl">
         <Link
           to="/"
-          className="text-sm font-medium text-stone-500 hover:text-[#174C3C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+          className="type-body-md text-text-muted hover:text-accent"
         >
           ← Overview
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-[30px] font-bold text-stone-900">{policy.title}</h1>
+            <h1 className="type-page-title text-ink">{policy.title}</h1>
             {policy.description && (
-              <p className="mt-1 max-w-2xl text-[14px] text-stone-500">{policy.description}</p>
+              <p className="type-body-md mt-1 max-w-2xl text-text-secondary">
+                {policy.description}
+              </p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             <a
               href="#graph"
-              className="rounded-lg border border-[#E6E7E4] bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-[#174C3C] hover:text-[#174C3C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+              className="type-label-md inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2"
             >
               View graph
             </a>
@@ -213,7 +223,7 @@ export default function PolicyPage() {
               type="button"
               onClick={handleRunImpact}
               disabled={running || !policy.draftVersion || changedCount === 0}
-              className="rounded-lg bg-[#174C3C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F3529] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+              className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
               title={
                 changedCount === 0
                   ? "Edit the draft to create a change before running analysis"
@@ -226,21 +236,30 @@ export default function PolicyPage() {
         </div>
 
         {loadError && (
-          <div className="mt-4 rounded-xl border border-[#E6E7E4] bg-white p-4" role="alert">
-            <p className="text-sm text-stone-600">{loadError}</p>
+          <div
+            className="mt-4 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+            role="alert"
+          >
+            <p className="type-body-md text-text-secondary">{loadError}</p>
           </div>
         )}
 
         {runError && (
-          <div className="mt-4 rounded-xl border border-[#E6E7E4] bg-white p-4" role="alert">
-            <p className="text-sm font-semibold text-stone-800">Impact analysis did not start</p>
-            <p className="mt-1 text-sm text-stone-600">{runError}</p>
+          <div
+            className="mt-4 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+            role="alert"
+          >
+            <p className="type-item-title text-ink">Impact analysis did not start</p>
+            <p className="type-body-md mt-1 text-text-secondary">{runError}</p>
           </div>
         )}
 
         {changes && changedCount === 0 && (
-          <div className="mt-4 rounded-xl border border-[#E6E7E4] bg-white p-4" aria-live="polite">
-            <p className="text-sm text-stone-600">
+          <div
+            className="mt-4 rounded-card border border-border-default bg-panel-low-70 p-4 backdrop-blur-card"
+            aria-live="polite"
+          >
+            <p className="type-body-md text-text-secondary">
               No changed clauses. Edit the draft text and save to create a change before running
               impact analysis.
             </p>
@@ -248,12 +267,12 @@ export default function PolicyPage() {
         )}
 
         {saveNotice && (
-          <p className="mt-4 text-sm font-medium text-[#174C3C]" role="status">
+          <p className="type-body-md mt-4 text-positive-micro" role="status">
             {saveNotice}
           </p>
         )}
         {saveError && (
-          <p className="mt-4 text-sm font-medium text-stone-700" role="alert">
+          <p className="type-body-md mt-4 text-ink" role="alert">
             {saveError}
           </p>
         )}
@@ -270,10 +289,10 @@ export default function PolicyPage() {
               <section
                 key={change.stableKey}
                 aria-label={`Clause ${change.stableKey}`}
-                className="rounded-xl border border-[#E6E7E4] bg-white p-5"
+                className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-mono text-[12.5px] font-semibold text-[#174C3C]">
+                  <p className="type-micro-mono uppercase text-accent">
                     {change.stableKey}
                   </p>
                   <ChangeBadge changeType={change.changeType} />
@@ -287,25 +306,19 @@ export default function PolicyPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
-                    <h2 className="text-[11px] font-semibold tracking-wide text-stone-500">
-                      ACTIVE VERSION
-                    </h2>
-                    <div className="mt-2 rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] p-3.5">
+                    <h2 className="type-label-sm text-text-muted">Active version</h2>
+                    <div className="mt-2 rounded-inner border border-border-faint bg-surface-1 p-3.5">
                       {change.activeClause ? (
-                        <p className="text-[14px] leading-relaxed text-stone-800">
-                          {change.activeClause.text}
-                        </p>
+                        <p className="type-body-md text-ink">{change.activeClause.text}</p>
                       ) : (
-                        <p className="text-[13.5px] text-stone-500">
+                        <p className="type-body-sm text-text-muted">
                           No active clause with this key.
                         </p>
                       )}
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-[11px] font-semibold tracking-wide text-stone-500">
-                      DRAFT VERSION
-                    </h2>
+                    <h2 className="type-label-sm text-text-muted">Draft version</h2>
                     {change.draftClause ? (
                       <>
                         <label
@@ -324,25 +337,25 @@ export default function PolicyPage() {
                             }))
                           }
                           rows={4}
-                          className="mt-2 w-full rounded-lg border border-[#E6E7E4] bg-white p-3.5 text-[14px] leading-relaxed text-stone-800 placeholder:text-stone-400 focus:border-[#174C3C] focus:outline-2 focus:outline-[#174C3C]"
+                          className="type-body-md mt-2 w-full rounded-inner border border-border-default bg-surface-white p-3.5 text-ink shadow-xs placeholder:text-text-muted focus:border-ink"
                         />
                         <div className="mt-2 flex items-center gap-3">
                           <button
                             type="button"
                             onClick={() => handleSave(change)}
                             disabled={savingClauseId === change.draftClause.id || !dirty}
-                            className="rounded-lg bg-[#174C3C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F3529] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                            className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {savingClauseId === change.draftClause.id ? "Saving…" : "Save draft"}
                           </button>
                           {dirty && (
-                            <span className="text-[12.5px] text-stone-500">Unsaved edits</span>
+                            <span className="type-body-sm text-text-muted">Unsaved edits</span>
                           )}
                         </div>
                       </>
                     ) : (
-                      <div className="mt-2 rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] p-3.5">
-                        <p className="text-[13.5px] text-stone-500">
+                      <div className="mt-2 rounded-inner border border-border-faint bg-surface-1 p-3.5">
+                        <p className="type-body-sm text-text-muted">
                           Removed in draft — nothing to edit.
                         </p>
                       </div>
@@ -355,24 +368,24 @@ export default function PolicyPage() {
         </div>
 
         {(!changes || changes.changes.length === 0) && !policy.draftVersion && (
-          <div className="mt-4 rounded-xl border border-[#E6E7E4] bg-white p-5">
-            <p className="text-sm text-stone-600">
+          <div className="mt-4 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card">
+            <p className="type-body-md text-text-secondary">
               This policy has no draft version, so there is nothing to compare yet.
             </p>
           </div>
         )}
 
         <section id="graph" aria-label="Dependency graph" className="mt-6 scroll-mt-6">
-          <h2 className="text-[18px] font-semibold text-stone-900">What depends on this clause?</h2>
-          <p className="mt-1 text-[13px] text-stone-500">
+          <h2 className="type-item-title text-ink">What depends on this clause?</h2>
+          <p className="type-body-sm mt-1 text-text-muted">
             Solid lines are approved dependencies. Dashed lines are not yet approved and are
             ignored by impact analysis.
           </p>
-          <div className="mt-3 rounded-xl border border-[#E6E7E4] bg-white p-4">
+          <div className="mt-3 rounded-panel border border-border-strong bg-glass-90 p-4 shadow-lg backdrop-blur-panel">
             {graph ? (
               <DependencyGraph nodes={graph.nodes} edges={graph.edges} />
             ) : (
-              <p className="text-sm text-stone-500">Graph unavailable.</p>
+              <p className="type-body-md text-text-muted">Graph unavailable.</p>
             )}
           </div>
         </section>

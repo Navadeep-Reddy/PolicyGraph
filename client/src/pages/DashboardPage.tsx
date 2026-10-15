@@ -41,31 +41,34 @@ export default function DashboardPage() {
   return (
     <AppShell breadcrumb="Overview">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-[30px] font-bold text-stone-900">PolicyGraph</h1>
-        <p className="mt-1 text-[14px] text-stone-500">
+        <h1 className="type-page-title text-ink">CareSync</h1>
+        <p className="type-body-lg mt-1 text-text-secondary">
           Trace a policy change to the forms, procedures, and software rules it affects.
         </p>
 
         {state === "loading" && (
-          <div className="mt-6 rounded-xl border border-[#E6E7E4] bg-white p-5" aria-live="polite">
-            <p className="text-sm text-stone-600">Loading policies…</p>
+          <div
+            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+            aria-live="polite"
+          >
+            <p className="type-body-md text-text-secondary">Loading policies…</p>
           </div>
         )}
 
         {state === "error" && (
           <div
-            className="mt-6 rounded-xl border border-[#E6E7E4] bg-white p-5"
+            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
             role="alert"
           >
-            <p className="text-sm font-semibold text-stone-800">Could not load policies</p>
-            <p className="mt-1 text-sm text-stone-600">{error}</p>
-            <p className="mt-1 text-[13px] text-stone-500">
+            <p className="type-item-title text-ink">Could not load policies</p>
+            <p className="type-body-md mt-1 text-text-secondary">{error}</p>
+            <p className="type-body-sm mt-1 text-text-muted">
               Confirm the API is running, then try again.
             </p>
             <button
               type="button"
               onClick={load}
-              className="mt-3 rounded-lg border border-[#174C3C] bg-white px-3 py-1.5 text-sm font-semibold text-[#174C3C] hover:bg-[#F0F4F1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+              className="type-label-md mt-3 inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2"
             >
               Retry
             </button>
@@ -73,10 +76,10 @@ export default function DashboardPage() {
         )}
 
         {state === "ready" && policies.length === 0 && (
-          <div className="mt-6 rounded-xl border border-[#E6E7E4] bg-white p-5">
-            <p className="text-sm font-semibold text-stone-800">No policies yet</p>
-            <p className="mt-1 text-sm text-stone-600">
-              Seed the database with the Travel Reimbursement Policy to begin.
+          <div className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card">
+            <p className="type-item-title text-ink">No policies yet</p>
+            <p className="type-body-md mt-1 text-text-secondary">
+              No policies have been added yet. New policies will appear here once created.
             </p>
           </div>
         )}
@@ -86,29 +89,29 @@ export default function DashboardPage() {
             {policies.map((policy) => (
               <article
                 key={policy.id}
-                className="rounded-xl border border-[#E6E7E4] bg-white p-5"
+                className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-[18px] font-semibold text-stone-900">{policy.title}</h2>
+                    <h2 className="type-item-title text-ink">{policy.title}</h2>
                     {policy.description && (
-                      <p className="mt-1 max-w-xl text-[13.5px] text-stone-500">
+                      <p className="type-body-md mt-1 max-w-xl text-text-muted">
                         {policy.description}
                       </p>
                     )}
                   </div>
                   <Link
                     to={`/policies/${policy.id}`}
-                    className="rounded-lg bg-[#174C3C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F3529] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                    className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent"
                   >
                     Open policy
                   </Link>
                 </div>
 
                 <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] px-3 py-2.5">
-                    <dt className="text-[11px] font-medium text-stone-500">Active version</dt>
-                    <dd className="mt-1 text-sm font-semibold text-stone-800">
+                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
+                    <dt className="type-label-sm text-text-muted">Active version</dt>
+                    <dd className="type-body-md mt-1 text-ink">
                       {policy.activeVersion ? (
                         <span className="flex items-center gap-2">
                           v{policy.activeVersion.versionNumber} <VersionBadge status="ACTIVE" />
@@ -118,9 +121,9 @@ export default function DashboardPage() {
                       )}
                     </dd>
                   </div>
-                  <div className="rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] px-3 py-2.5">
-                    <dt className="text-[11px] font-medium text-stone-500">Draft version</dt>
-                    <dd className="mt-1 text-sm font-semibold text-stone-800">
+                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
+                    <dt className="type-label-sm text-text-muted">Draft version</dt>
+                    <dd className="type-body-md mt-1 text-ink">
                       {policy.draftVersion ? (
                         <span className="flex items-center gap-2">
                           v{policy.draftVersion.versionNumber} <VersionBadge status="DRAFT" />
@@ -130,28 +133,28 @@ export default function DashboardPage() {
                       )}
                     </dd>
                   </div>
-                  <div className="rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] px-3 py-2.5">
-                    <dt className="text-[11px] font-medium text-stone-500">Approved dependencies</dt>
-                    <dd className="mt-1 text-sm font-semibold text-stone-800">
+                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
+                    <dt className="type-label-sm text-text-muted">Approved dependencies</dt>
+                    <dd className="type-body-md mt-1 text-ink">
                       {policy.approvedDependencyCount}
                     </dd>
                   </div>
                   <div
                     id={policies[0]?.id === policy.id ? "latest" : undefined}
-                    className="rounded-lg border border-[#E6E7E4] bg-[#F7F7F5] px-3 py-2.5"
+                    className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5"
                   >
-                    <dt className="text-[11px] font-medium text-stone-500">Latest impact run</dt>
-                    <dd className="mt-1 text-sm font-semibold text-stone-800">
+                    <dt className="type-label-sm text-text-muted">Latest impact run</dt>
+                    <dd className="type-body-md mt-1 text-ink">
                       {policy.latestImpactRun ? (
                         <Link
                           to={`/impact-runs/${policy.latestImpactRun.id}`}
-                          className="text-[#174C3C] underline decoration-[#174C3C]/30 underline-offset-2 hover:decoration-[#174C3C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                          className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent"
                         >
                           {policy.latestImpactRun.resultCount} affected ·{" "}
                           {formatDate(policy.latestImpactRun.createdAt)}
                         </Link>
                       ) : (
-                        <span className="font-normal text-stone-500">None yet</span>
+                        <span className="text-text-muted">None yet</span>
                       )}
                     </dd>
                   </div>

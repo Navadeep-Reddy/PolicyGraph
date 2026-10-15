@@ -40,10 +40,9 @@ export default function ImpactReportPage() {
         setLoading(false);
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : "Could not reach the API.");
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Could not reach the API.");
+        setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -90,8 +89,11 @@ export default function ImpactReportPage() {
   if (loading) {
     return (
       <AppShell breadcrumb="Impact Runs">
-        <div className="mx-auto max-w-6xl rounded-xl border border-[#E6E7E4] bg-white p-5" aria-live="polite">
-          <p className="text-sm text-stone-600">Loading impact report…</p>
+        <div
+          className="mx-auto max-w-6xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+          aria-live="polite"
+        >
+          <p className="type-body-md text-text-secondary">Loading impact report…</p>
         </div>
       </AppShell>
     );
@@ -100,12 +102,17 @@ export default function ImpactReportPage() {
   if (!report) {
     return (
       <AppShell breadcrumb="Impact Runs">
-        <div className="mx-auto max-w-6xl rounded-xl border border-[#E6E7E4] bg-white p-5" role="alert">
-          <p className="text-sm font-semibold text-stone-800">Impact run not found</p>
-          <p className="mt-1 text-sm text-stone-600">{loadError || "This report does not exist."}</p>
+        <div
+          className="mx-auto max-w-6xl rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+          role="alert"
+        >
+          <p className="type-item-title text-ink">Impact run not found</p>
+          <p className="type-body-md mt-1 text-text-secondary">
+            {loadError || "This report does not exist."}
+          </p>
           <Link
             to="/"
-            className="mt-3 inline-block rounded-lg px-3 py-1.5 text-sm font-medium text-[#174C3C] hover:bg-[#F0F4F1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+            className="type-body-md mt-3 inline-block px-3 py-1.5 text-accent hover:bg-surface-2"
           >
             ← Back to overview
           </Link>
@@ -123,17 +130,17 @@ export default function ImpactReportPage() {
       <div className="mx-auto max-w-6xl">
         <Link
           to={`/policies/${report.policyId}`}
-          className="text-sm font-medium text-stone-500 hover:text-[#174C3C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+          className="type-body-md text-text-muted hover:text-accent"
         >
           ← Back to policy
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-[30px] font-bold text-stone-900">Impact analysis</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-stone-500">
+            <h1 className="type-page-title text-ink">Impact analysis</h1>
+            <div className="type-body-sm mt-1 flex flex-wrap items-center gap-2 text-text-muted">
               {modifiedChanges.slice(0, 3).map((change) => (
                 <span key={change.stableKey} className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-[12px] font-semibold text-[#174C3C]">
+                  <span className="type-micro-mono uppercase text-accent">
                     {change.stableKey}
                   </span>
                   <ChangeBadge changeType={change.changeType} />
@@ -149,9 +156,12 @@ export default function ImpactReportPage() {
         </div>
 
         {results.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-[#E6E7E4] bg-white p-5" aria-live="polite">
-            <p className="text-sm font-semibold text-stone-800">No affected artifacts</p>
-            <p className="mt-1 text-sm text-stone-600">
+          <div
+            className="mt-6 rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
+            aria-live="polite"
+          >
+            <p className="type-item-title text-ink">No affected artifacts</p>
+            <p className="type-body-md mt-1 text-text-secondary">
               The changed clause has no approved downstream dependencies, so there is nothing to
               review.
             </p>
@@ -161,11 +171,9 @@ export default function ImpactReportPage() {
             {/* Result list: ~36% on desktop, stacked above the graph on narrow screens. */}
             <section
               aria-label="Impacted artifacts"
-              className="rounded-xl border border-[#E6E7E4] bg-white p-4 lg:w-[36%] lg:shrink-0"
+              className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card lg:w-[36%] lg:shrink-0"
             >
-              <h2 className="px-1 text-[15px] font-semibold text-stone-900">
-                Impacted artifacts
-              </h2>
+              <h2 className="type-card-title px-1 text-ink">Impacted artifacts</h2>
               <ul className="mt-2 flex flex-col gap-1.5">
                 {results.map((result) => {
                   const isSelected = result.id === selectedId;
@@ -175,20 +183,16 @@ export default function ImpactReportPage() {
                         type="button"
                         onClick={() => setSelectedId(result.id)}
                         aria-pressed={isSelected}
-                        className={`w-full rounded-lg border-l-[3px] px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C] ${
+                        className={`w-full rounded-inner border-l-[2px] px-3 py-2.5 text-left transition-colors ${
                           isSelected
-                            ? "border-l-[#174C3C] bg-[#F0F4F1]"
-                            : "border-l-transparent hover:bg-stone-100"
+                            ? "border-l-accent bg-accent-wash"
+                            : "border-l-transparent hover:bg-surface-2"
                         }`}
                       >
-                        <span
-                          className={`block text-[14px] text-stone-800 ${
-                            isSelected ? "font-semibold" : "font-medium"
-                          }`}
-                        >
+                        <span className="block text-sm font-semibold text-ink">
                           {result.artifact.name}
                         </span>
-                        <span className="mt-0.5 block text-[12px] text-stone-500">
+                        <span className="type-body-sm mt-0.5 block text-text-muted">
                           {humanArtifactType(result.artifact.type)} · {hopsLabel(result.distance)}
                         </span>
                         <span className="mt-1.5 block">
@@ -201,13 +205,13 @@ export default function ImpactReportPage() {
               </ul>
 
               {selected && (
-                <div className="mt-4 border-t border-[#E6E7E4] pt-4">
-                  <h3 className="text-[13px] font-semibold text-stone-800">
+                <div className="mt-4 border-t border-border-faint pt-4">
+                  <h3 className="text-sm font-semibold text-ink">
                     Review: {selected.artifact.name}
                   </h3>
-                  <p className="mt-1 text-[12.5px] text-stone-500">{selected.reason}</p>
+                  <p className="type-body-sm mt-1 text-text-secondary">{selected.reason}</p>
                   {selected.reviewComment && (
-                    <p className="mt-2 rounded-lg bg-stone-100 px-3 py-2 text-[12.5px] text-stone-600">
+                    <p className="type-body-sm mt-2 rounded-inner bg-surface-1 px-3 py-2 text-text-secondary">
                       Note: {selected.reviewComment}
                     </p>
                   )}
@@ -220,14 +224,14 @@ export default function ImpactReportPage() {
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="Add optional triage note…"
-                    className="mt-3 w-full rounded-lg border border-[#E6E7E4] bg-white px-3 py-2 text-[13px] text-stone-700 placeholder:text-stone-400 focus:border-[#174C3C] focus:outline-2 focus:outline-[#174C3C]"
+                    className="type-body-md mt-3 h-11 w-full rounded-inner border border-border-default bg-surface-white px-3 py-2 text-ink shadow-xs placeholder:text-text-muted focus:border-ink"
                   />
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleReview("DISMISSED")}
                       disabled={saving}
-                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-800 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                      className="type-label-md inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2 disabled:opacity-50"
                     >
                       Dismiss
                     </button>
@@ -235,7 +239,7 @@ export default function ImpactReportPage() {
                       type="button"
                       onClick={() => handleReview("CONFIRMED")}
                       disabled={saving}
-                      className="rounded-lg border border-[#174C3C] bg-white px-3 py-1.5 text-sm font-semibold text-[#174C3C] hover:bg-[#F0F4F1] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                      className="type-label-md inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2 disabled:opacity-50"
                     >
                       Confirm impact
                     </button>
@@ -243,18 +247,18 @@ export default function ImpactReportPage() {
                       type="button"
                       onClick={() => handleReview("RESOLVED")}
                       disabled={saving}
-                      className="rounded-lg bg-[#174C3C] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#0F3529] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174C3C]"
+                      className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent disabled:opacity-50"
                     >
                       {saving ? "Saving…" : "Mark resolved"}
                     </button>
                   </div>
                   {feedback && (
-                    <p className="mt-2 text-[12.5px] font-medium text-[#174C3C]" role="status">
+                    <p className="type-body-sm mt-2 text-positive-micro" role="status">
                       {feedback}
                     </p>
                   )}
                   {reviewError && (
-                    <p className="mt-2 text-[12.5px] font-medium text-stone-700" role="alert">
+                    <p className="type-body-sm mt-2 text-ink" role="alert">
                       {reviewError}
                     </p>
                   )}
@@ -266,11 +270,9 @@ export default function ImpactReportPage() {
             <div className="flex min-w-0 flex-1 flex-col gap-4 lg:w-[64%]">
               <section
                 aria-label="Selected dependency path"
-                className="rounded-xl border border-[#E6E7E4] bg-white p-4"
+                className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
               >
-                <h2 className="text-[15px] font-semibold text-stone-900">
-                  Selected dependency path
-                </h2>
+                <h2 className="type-card-title text-ink">Selected dependency path</h2>
                 <div className="mt-3">
                   <DependencyGraph
                     nodes={report.graph.nodes}
@@ -285,12 +287,10 @@ export default function ImpactReportPage() {
               {selected && (
                 <section
                   aria-label="Why is this affected"
-                  className="rounded-xl border border-[#E6E7E4] bg-white p-4"
+                  className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
                 >
-                  <h2 className="text-[15px] font-semibold text-stone-900">
-                    Why is this affected?
-                  </h2>
-                  <p className="mt-1 text-[13px] text-stone-500">{selected.reason}</p>
+                  <h2 className="type-card-title text-ink">Why is this affected?</h2>
+                  <p className="type-body-sm mt-1 text-text-secondary">{selected.reason}</p>
                   <div className="mt-3">
                     <PathViewer
                       nodes={selected.path.nodes}
