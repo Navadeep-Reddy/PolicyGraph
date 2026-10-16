@@ -144,6 +144,16 @@ VITE_USE_MOCKS=false
 
 `VITE_USE_MOCKS=true` is a development aid for building the UI before the backend is ready. See `AGENTS.md`.
 
+### Optional readable demo data
+
+To deliberately load a readable visitor-policy sample into the configured Supabase database, run this from `server/`:
+
+```bash
+npm run db:demo
+```
+
+This opt-in script is not automatic and its sample content is manually authored, not AI-produced. Every invocation **deletes all CareSync application records, including user-added data and impact reports**, then restores the same baseline: Hospital Visitor Policy with version 1 ACTIVE (8:00 PM) and version 2 DRAFT (6:00 PM), plus unchanged registration and badge clauses. It adds Security Desk Procedure, Ward Visitor Checklist, Visitor Information Sheet, and Visitor Access Training, connected by four approved manual dependencies. It creates no impact runs. The reset and restore run in one transaction; a failure rolls back the reset.
+
 ### Browser walkthrough (you enter all data)
 
 1. Open `http://localhost:5173` and click **New policy**.

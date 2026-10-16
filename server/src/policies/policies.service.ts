@@ -221,7 +221,7 @@ export class PoliciesService {
         ...this.toVersion(published),
         clauses: [...published.clauses].sort((left, right) => left.position - right.position).map(toVersionClauseDto),
       };
-    });
+    }, { maxWait: 10_000, timeout: 15_000 });
   }
 
   async createClause(versionId: string, input: CreateClauseDto): Promise<VersionClauseDto> {

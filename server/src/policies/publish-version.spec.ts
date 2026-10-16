@@ -23,13 +23,13 @@ describe('PoliciesService.publishVersion', () => {
       return { ...version!, ...data };
     });
     const tx = { policyVersion: { findUnique, updateMany, update } };
-    const $transaction = vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx));
+    const $transaction = vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>, _options?: { maxWait: number; timeout: number }) => callback(tx));
     return { service: new PoliciesService({ $transaction } as never), operations, findUnique, updateMany, update, $transaction };
   }
 
   it('publishes a first version with ordered contract clauses and one published timestamp', async () => {
     vi.useFakeTimers(); vi.setSystemTime(now);
-    const { service, operations, updateMany, update } = setup();
+    const { service, operations, updateMany, update, $transaction } = setup();
     await expect(service.publishVersion('draft')).resolves.toEqual({
       id: 'draft', policyId: 'policy', versionNumber: 2, status: 'ACTIVE',
       publishedAt: now.toISOString(), createdAt: '2026-01-01T00:00:00.000Z',
@@ -39,6 +39,7 @@ describe('PoliciesService.publishVersion', () => {
       ],
     });
     expect(operations).toEqual(['read', 'archive', 'publish']);
+    expect($transaction).toHaveBeenCalledWith(expect.any(Function), { maxWait: 10_000, timeout: 15_000 });
     expect(updateMany).toHaveBeenCalledWith({ where: { policyId: 'policy', status: 'ACTIVE' }, data: { status: 'ARCHIVED' } });
     expect(update.mock.calls[0][0].data.publishedAt.getTime()).toBe(now.getTime());
     vi.useRealTimers();
@@ -70,5 +71,14 @@ describe('PoliciesService.publishVersion', () => {
     expect(updateMany).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledTimes(1);
     expect($transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates transaction failure without returning a published version', async () => {
+    const failure = Object.assign(new Error('transaction failed'), { code: 'P2028' });
+    const $transaction = vi.fn(async () => { throw failure; });
+    const service = new PoliciesService({ $transaction } as never);
+
+    await expect(service.publishVersion('draft')).rejects.toBe(failure);
+    expect($transaction).toHaveBeenCalledWith(expect.any(Function), { maxWait: 10_000, timeout: 15_000 });
   });
 });

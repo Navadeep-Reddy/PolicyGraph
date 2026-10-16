@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, HttpStatus, NotFoundException, BadGatewayException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpStatus, NotFoundException, BadGatewayException, Logger } from '@nestjs/common';
 import { ContractExceptionFilter } from './contract-exception.filter.js';
 import { ContractHttpException } from './contract-http.exception.js';
 
@@ -34,5 +34,16 @@ describe('ContractExceptionFilter', () => {
     expect(map(new Error('secret details'))).toEqual([
       {}, { error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred' } }, 500,
     ]);
+  });
+
+  it('logs only safe unknown-error diagnostics without changing the generic response', () => {
+    const log = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const exception = Object.assign(new Error('postgresql://secret/db?password=secret'), { code: 'P2028' });
+    expect(map(exception)).toEqual([
+      {}, { error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred' } }, 500,
+    ]);
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/^\{"errorClass":"Error","code":"P2028","applicationFrame":"[^"]+\/src\/[^"]+"\}$/));
+    expect(log.mock.calls[0][0]).not.toContain('secret');
+    log.mockRestore();
   });
 });

@@ -4,12 +4,15 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ContractHttpException, type ContractErrorCode } from './contract-http.exception.js';
 
 @Catch()
 export class ContractExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ContractExceptionFilter.name);
+
   constructor(private readonly adapterHost: HttpAdapterHost) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -18,6 +21,10 @@ export class ContractExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: ContractErrorCode | string = 'INTERNAL_SERVER_ERROR';
     let message = 'An unexpected error occurred';
+
+    if (!(exception instanceof HttpException)) {
+      this.logUnknownError(exception);
+    }
 
     if (exception instanceof ContractHttpException) {
       status = exception.getStatus();
@@ -59,5 +66,19 @@ export class ContractExceptionFilter implements ExceptionFilter {
       return messages.join('; ') || 'Request validation failed';
     }
     return typeof value === 'string' && value.length > 0 ? value : 'Request failed';
+  }
+
+  private logUnknownError(exception: unknown): void {
+    const error = typeof exception === 'object' && exception !== null ? exception as Record<string, unknown> : {};
+    const rawClass = exception instanceof Error ? exception.constructor.name : 'UnknownError';
+    const errorClass = /^[A-Za-z0-9_$]+$/.test(rawClass) ? rawClass : 'UnknownError';
+    const rawCode = error['code'];
+    const code = typeof rawCode === 'string' && /^[A-Z0-9_]+$/.test(rawCode) ? rawCode : undefined;
+    const stack = exception instanceof Error ? exception.stack : undefined;
+    const applicationFrame = stack?.split('\n')
+      .map((line) => line.match(/(?:file:\/\/)?[^\s()]*\/src\/[^\s()]+:\d+:\d+/)?.[0])
+      .find((location) => location !== undefined);
+
+    this.logger.error(JSON.stringify({ errorClass, ...(code ? { code } : {}), ...(applicationFrame ? { applicationFrame } : {}) }));
   }
 }
