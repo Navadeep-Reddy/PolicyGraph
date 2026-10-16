@@ -108,15 +108,15 @@ scaffold
 
 Start each task only when the listed tasks are checked.
 
-- [ ] I-01 `[INTEGRATION]` (needs B-04, F-03) Client reads `/health` from the real API; set `VITE_API_URL`
-- [ ] I-02 `[INTEGRATION]` (needs B-08, F-06) Pasted policy text produces real AI-extracted clauses in the UI
-- [ ] I-03 `[INTEGRATION]` (needs B-09–B-11, F-07) Edit, publish, and revision flow works end to end
-- [ ] I-04 `[INTEGRATION]` (needs B-14–B-17, F-08–F-10) Items, AI suggestions, approve/reject, manual add, and graph work end to end
-- [ ] I-05 `[INTEGRATION]` (needs B-13, F-11) Comparison shows correct change badges
-- [ ] I-06 `[INTEGRATION]` (needs B-18–B-21, F-12–F-13) Impact run, report, paths, and review status persist after refresh
-- [ ] I-07 `[INTEGRATION]` Remove or disable the mock layer; fix contract mismatches in `API_CONTRACT.md` and both sides
-- [ ] I-08 `[INTEGRATION]` Verify setup from `README.md` on a clean clone
-- [ ] I-09 `[INTEGRATION]` Run the final smoke test below on an empty database
+- [x] I-01 `[INTEGRATION]` (needs B-04, F-03) Client reads `/health` from the real API; set `VITE_API_URL`
+- [x] I-02 `[INTEGRATION]` (needs B-08, F-06) Pasted policy text produces real AI-extracted clauses in the UI
+- [x] I-03 `[INTEGRATION]` (needs B-09–B-11, F-07) Edit, publish, and revision flow works end to end
+- [x] I-04 `[INTEGRATION]` (needs B-14–B-17, F-08–F-10) Items, AI suggestions, approve/reject, manual add, and graph work end to end
+- [x] I-05 `[INTEGRATION]` (needs B-13, F-11) Comparison shows correct change badges
+- [x] I-06 `[INTEGRATION]` (needs B-18–B-21, F-12–F-13) Impact run, report, paths, and review status persist after refresh
+- [x] I-07 `[INTEGRATION]` Remove or disable the mock layer; fix contract mismatches in `API_CONTRACT.md` and both sides
+- [x] I-08 `[INTEGRATION]` Verify setup from `README.md` on a clean clone
+- [x] I-09 `[INTEGRATION]` Run the final smoke test below on an empty database
 
 ---
 

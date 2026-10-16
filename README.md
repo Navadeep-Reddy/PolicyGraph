@@ -74,7 +74,7 @@ There is no authentication.
 
 ## Local setup
 
-Prerequisites: Node.js + npm, a free Supabase account, an NVIDIA API key.
+Prerequisites: Node.js 24 LTS (24.15 or newer) + npm, a free Supabase account, an NVIDIA API key.
 
 ### 1. Supabase (hosted)
 
@@ -97,8 +97,14 @@ Free-tier projects pause after inactivity. Resume the project in the dashboard i
 ```bash
 cd server
 cp .env.example .env
-npm install
-npm run db:migrate
+```
+
+Fill in `server/.env` with your Supabase connection strings and all three NVIDIA settings shown below before continuing:
+
+```bash
+npm ci
+npm run db:generate
+npx prisma migrate deploy
 npm run start:dev
 ```
 
@@ -111,6 +117,8 @@ NVIDIA_API_KEY=
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_MODEL=nvidia/nemotron-3.5-super-vl-120b-a12b
 ```
+
+Prisma client generation is required on a clean clone; the generated client is not committed. `prisma migrate deploy` applies the checked-in migrations without creating a shadow database. Use `npm run db:migrate` when developing a new schema migration.
 
 Reset the database (wipes all data and re-applies migrations):
 
