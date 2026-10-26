@@ -18,10 +18,9 @@ function BrandMark() {
       aria-hidden="true"
       focusable="false"
     >
-      <rect x="2.5" y="2.5" width="19" height="19" rx="4" stroke="#06101E" strokeWidth="1.5" />
-      <circle cx="8.5" cy="12" r="2.5" stroke="#06101E" strokeWidth="1.5" />
-      <circle cx="15.5" cy="12" r="2.5" stroke="#36637C" strokeWidth="1.5" />
-      <line x1="11" y1="12" x2="13" y2="12" stroke="#36637C" strokeWidth="1.5" />
+      <path d="M3 12h5c2 0 2-4 4-4s2 8 4 8 2-4 5-4" stroke="#D9F5F2" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="12" r="2.2" fill="#153C53" stroke="#62C7BD" strokeWidth="1.7" />
+      <circle cx="17" cy="12" r="2.2" fill="#153C53" stroke="#8CC6E1" strokeWidth="1.7" />
     </svg>
   );
 }
@@ -52,10 +51,10 @@ function BreadcrumbTrail({ trail }: { trail: string }) {
   );
 }
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `type-label-md block rounded-action border-l-2 px-3 py-2 transition-colors ${
+  `type-label-md block rounded-action px-3 py-2 transition-colors ${
     isActive
-      ? "border-l-accent bg-accent-wash text-accent"
-      : "border-l-transparent text-nav-text hover:bg-surface-2 hover:text-ink"
+      ? "nav-active bg-accent-wash text-accent"
+      : "text-nav-text hover:bg-surface-2 hover:text-ink"
   }`;
 
 export default function AppShell({ breadcrumb, children }: AppShellProps) {
@@ -120,8 +119,8 @@ export default function AppShell({ breadcrumb, children }: AppShellProps) {
   }, [pathname, hash]);
 
   return (
-    <div className="app-background min-h-screen text-ink">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border-faint bg-glass-60 px-5 backdrop-blur-card lg:hidden">
+      <div className="app-background min-h-screen text-ink">
+      <header className="app-mobile-header sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border-faint bg-glass-60 px-5 backdrop-blur-card lg:hidden">
         <p className="flex items-center gap-2 text-ink">
           <BrandMark />
           <span className="type-wordmark">CareSync</span>
@@ -138,7 +137,7 @@ export default function AppShell({ breadcrumb, children }: AppShellProps) {
       </dialog>
 
       <div className="lg:flex">
-        <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 overflow-y-auto border-r border-border-default bg-glass-70 backdrop-blur-panel lg:block">
+        <aside className="app-sidebar sticky top-0 hidden h-screen w-[248px] shrink-0 overflow-y-auto border-r border-border-default bg-glass-70 backdrop-blur-panel lg:block">
           <div className="p-4">
             <p className="flex items-center gap-2 px-1 text-ink">
               <BrandMark />

@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { listPolicies } from "../api/client.ts";
 import AppShell from "../components/AppShell.tsx";
-import { VersionBadge } from "../components/badges.tsx";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataStates.tsx";
 import type { PolicySummary } from "../types/index.ts";
 
@@ -31,122 +30,74 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  const activeCount = policies.filter((policy) => policy.activeVersionNumber !== null).length;
+  const draftCount = policies.filter((policy) => policy.draftVersionId !== null).length;
+  const dependencyCount = policies.reduce((count, policy) => count + policy.approvedDependencyCount, 0);
+
   return (
-    <AppShell breadcrumb="Overview">
-      <div>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="type-label-sm text-accent">Policy operations · overview</p>
-            <h1 className="type-page-title mt-2 text-ink">Dashboard</h1>
-            <p className="type-body-lg mt-1 max-w-[72ch] text-text-secondary">
-              Trace hospital policy changes to the operational items that may need review.
-            </p>
-          </div>
-          <Link
-            to="/policies/new"
-            className="type-label-md inline-flex h-11 items-center justify-center rounded-action bg-ink px-7 text-on-dark shadow-sm transition-colors hover:bg-accent"
-          >
-            New policy
-          </Link>
+    <AppShell breadcrumb="Policy operations / Policies">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="type-page-title text-ink">Policies</h1>
+          <p className="type-body-lg mt-2 max-w-[68ch] text-text-secondary">
+            Current versions and operational review status.
+          </p>
         </div>
-
-        {state === "loading" && (
-          <div className="mt-6"><LoadingState message="Loading policies…" /></div>
-        )}
-
-        {state === "error" && (
-          <div className="mt-6"><ErrorState title="Could not load policies" description={`${error} Confirm the API is running, then retry.`} action={<button
-              type="button"
-              onClick={load}
-              className="type-label-md mt-3 inline-flex h-11 items-center rounded-action border border-border-default bg-glass-80 px-6 text-ink backdrop-blur-card hover:bg-surface-2"
-            >
-              Retry
-            </button>} /></div>
-        )}
-
-        {state === "ready" && policies.length === 0 && (
-          <div className="mt-6"><EmptyState title="No policies yet" description="Create a policy to start tracking clause changes and the operational items they may affect." action={<Link to="/policies/new" className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent">Create your first policy</Link>} /></div>
-        )}
-
-        {state === "ready" && policies.length > 0 && (
-          <div id="policies" className="mt-6 flex flex-col gap-4">
-            {policies.map((policy) => (
-              <article
-                key={policy.id}
-                className="rounded-card border border-border-default bg-glass-80 p-7 shadow-sm backdrop-blur-card"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="type-item-title text-ink">{policy.title}</h2>
-                    {policy.description && (
-                      <p className="type-body-md mt-1 max-w-xl text-text-muted">
-                        {policy.description}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    to={`/policies/${policy.id}`}
-                    className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent"
-                  >
-                    Open policy
-                  </Link>
-                </div>
-
-                <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
-                    <dt className="type-label-sm text-text-muted">Active version</dt>
-                    <dd className="type-body-md mt-1 text-ink">
-                      {policy.activeVersionNumber !== null ? (
-                        <span className="flex items-center gap-2">
-                          v{policy.activeVersionNumber} <VersionBadge status="ACTIVE" />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </dd>
-                  </div>
-                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
-                    <dt className="type-label-sm text-text-muted">Draft version</dt>
-                    <dd className="type-body-md mt-1 text-ink">
-                      {policy.draftVersionId ? (
-                        <span className="flex items-center gap-2">
-                          <VersionBadge status="DRAFT" />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </dd>
-                  </div>
-                  <div className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5">
-                    <dt className="type-label-sm text-text-muted">Approved dependencies</dt>
-                    <dd className="type-body-md mt-1 text-ink">
-                      {policy.approvedDependencyCount}
-                    </dd>
-                  </div>
-                  <div
-                    id={policies[0]?.id === policy.id ? "latest" : undefined}
-                    className="rounded-inner border border-border-faint bg-surface-1 px-3 py-2.5"
-                  >
-                    <dt className="type-label-sm text-text-muted">Latest impact run</dt>
-                    <dd className="type-body-md mt-1 text-ink">
-                      {policy.latestImpactRunId ? (
-                        <Link
-                          to={`/impact-runs/${policy.latestImpactRunId}`}
-                          className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent"
-                        >
-                          View impact report
-                        </Link>
-                      ) : (
-                        <span className="text-text-muted">None yet</span>
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
-          </div>
-        )}
+        <Link to="/policies/new" className="type-label-md inline-flex h-11 items-center justify-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent">
+          New policy
+        </Link>
       </div>
+
+      {state === "loading" && <div className="mt-7"><LoadingState message="Loading policies…" /></div>}
+
+      {state === "error" && (
+        <div className="mt-7"><ErrorState title="Could not load policies" description={`${error} Confirm the API is running, then retry.`} action={<button type="button" onClick={load} className="type-label-md mt-3 inline-flex h-11 items-center rounded-action border border-border-default bg-surface-white px-6 text-ink hover:bg-surface-2">Retry</button>} /></div>
+      )}
+
+      {state === "ready" && policies.length === 0 && (
+        <div className="mt-7"><EmptyState title="No policies yet" description="Create a policy to start tracking clause changes and the operational items they may affect." action={<Link to="/policies/new" className="type-label-md inline-flex h-11 items-center rounded-action bg-ink px-7 text-on-dark shadow-sm hover:bg-accent">Create your first policy</Link>} /></div>
+      )}
+
+      {state === "ready" && policies.length > 0 && (
+        <>
+          <dl className="mt-7 grid grid-cols-2 border-y border-border-strong sm:grid-cols-4">
+            <div className="border-r border-border-faint px-4 py-4 sm:px-6"><dt className="type-label-sm text-text-muted">Policies</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">{policies.length}</dd></div>
+            <div className="border-r border-border-faint px-4 py-4 sm:px-6"><dt className="type-label-sm text-text-muted">Active versions</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">{activeCount}</dd></div>
+            <div className="border-r border-border-faint px-4 py-4 sm:px-6"><dt className="type-label-sm text-text-muted">Drafts in progress</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">{draftCount}</dd></div>
+            <div className="px-4 py-4 sm:px-6"><dt className="type-label-sm text-text-muted">Approved dependencies</dt><dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">{dependencyCount}</dd></div>
+          </dl>
+
+          <section id="policies" className="mt-8" aria-labelledby="policy-register-title">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+              <h2 id="policy-register-title" className="type-section-title text-ink">Policy register</h2>
+              <span className="type-micro-mono text-text-muted">{policies.length} RECORDS</span>
+            </div>
+            <div className="overflow-hidden rounded-panel border border-border-strong bg-glass-90 shadow-lg">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[740px] border-collapse text-left">
+                  <caption className="sr-only">Policies, current and draft versions, approved dependencies, and latest impact reports</caption>
+                  <thead><tr className="border-b border-border-strong">
+                    <th className="type-label-md px-4 py-3 text-text-muted">Policy</th>
+                    <th className="type-label-md px-4 py-3 text-text-muted">Active version</th>
+                    <th className="type-label-md px-4 py-3 text-text-muted">Draft</th>
+                    <th className="type-label-md px-4 py-3 text-text-muted">Dependencies</th>
+                    <th className="type-label-md px-4 py-3 text-text-muted">Latest impact</th>
+                  </tr></thead>
+                  <tbody>{policies.map((policy) => (
+                    <tr key={policy.id} className="border-b border-border-faint last:border-0 hover:bg-row-hover">
+                      <td className="px-4 py-4"><Link to={`/policies/${policy.id}`} className="font-semibold text-ink hover:text-accent">{policy.title}</Link>{policy.description && <p className="type-body-sm mt-1 max-w-[42ch] text-text-muted">{policy.description}</p>}</td>
+                      <td className="type-body-sm px-4 py-4 text-text-secondary">{policy.activeVersionNumber === null ? <span className="text-text-muted">Not published</span> : <span className="inline-flex items-center gap-2"><span className="route-node h-2.5 w-2.5" style={{ "--route-color": "var(--route-green)" } as CSSProperties} />v{policy.activeVersionNumber} · Active</span>}</td>
+                      <td className="type-body-sm px-4 py-4 text-text-secondary">{policy.draftVersionId ? <Link to={`/policies/${policy.id}`} className="inline-flex items-center gap-2 text-ink hover:text-accent"><span className="route-node h-2.5 w-2.5" style={{ "--route-color": "var(--route-amber)" } as CSSProperties} />Draft in progress</Link> : <span className="text-text-muted">—</span>}</td>
+                      <td className="type-micro-mono px-4 py-4 text-ink">{policy.approvedDependencyCount}</td>
+                      <td className="type-body-sm px-4 py-4">{policy.latestImpactRunId ? <Link id={policies[0]?.id === policy.id ? "latest" : undefined} to={`/impact-runs/${policy.latestImpactRunId}`} className="text-accent underline decoration-accent/30 hover:decoration-accent">View impact report →</Link> : <span id={policies[0]?.id === policy.id ? "latest" : undefined} className="text-text-muted">None yet</span>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
     </AppShell>
   );
 }

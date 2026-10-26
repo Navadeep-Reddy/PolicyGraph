@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import {
-  Background,
   Controls,
   Handle,
   MarkerType,
@@ -18,21 +18,16 @@ interface GraphNodeData extends Record<string, unknown> {
   kindLabel: string;
   name: string;
   mono: boolean;
-  glyph: string;
   visual: "clause" | "artifact" | "affected";
   dimmed: boolean;
   subtitle: string | null;
   clickable: boolean;
   onClick: () => void;
+  routeColor: string;
 }
 
 function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
-  const surface =
-    data.visual === "clause"
-      ? "border-border-strong bg-glass-80"
-      : data.visual === "affected"
-        ? "border-accent bg-surface-2"
-        : "border-border-faint bg-surface-white";
+  const surface = data.visual === "affected" ? "bg-surface-2" : "bg-surface-white";
   const icon =
     data.visual === "clause"
       ? "bg-ink text-on-dark"
@@ -51,18 +46,14 @@ function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
           data.onClick();
         }
       } : undefined}
-      className={`w-[260px] rounded-card border px-4 py-3 shadow-sm ${data.clickable ? "cursor-pointer" : ""} ${surface} ${
+      style={{ borderColor: data.routeColor } as CSSProperties}
+      className={`w-[260px] rounded-2xl border-2 px-4 py-3 shadow-sm ${data.clickable ? "cursor-pointer" : ""} ${surface} ${
         data.dimmed ? "opacity-35" : ""
       }`}
     >
       <Handle type="target" position={Position.Left} className="!bg-surface-4" />
       <div className="flex items-start gap-2">
-        <span
-          aria-hidden="true"
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-inner text-sm font-semibold ${icon}`}
-        >
-          {data.glyph}
-        </span>
+        <span aria-hidden="true" className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${icon}`} />
         <span className="min-w-0">
           <span className="type-label-sm block text-text-muted">{data.kindLabel}</span>
           <span
@@ -94,8 +85,15 @@ interface DependencyGraphProps {
   hideOrphanClauses?: boolean;
 }
 
-function glyphFor(node: GraphNodeType): string {
-  return node.type === "CLAUSE" ? "§" : "▤";
+function routeColorForNode(node: GraphNodeType, affectedNodeId: string | null): string {
+  if (node.id === affectedNodeId) return "var(--route-scarlet)";
+  return node.type === "CLAUSE" ? "var(--route-amber)" : "var(--route-cobalt)";
+}
+
+function routeColorForRelationship(relationshipType: GraphEdge["relationshipType"]): string {
+  if (relationshipType === "GOVERNS") return "var(--route-scarlet)";
+  if (relationshipType === "UPDATES") return "var(--route-cobalt)";
+  return "var(--route-amber)";
 }
 
 function kindLabelFor(node: GraphNodeType): string {
@@ -207,8 +205,8 @@ export default function DependencyGraph({
               subtitle: node.subtitle,
               clickable: interactiveClauseFocus && node.type === "CLAUSE",
               onClick: () => setFocusedClause(node.id),
-              glyph: glyphFor(node),
               visual,
+              routeColor: routeColorForNode(node, affectedNodeId),
               dimmed,
             },
             selectable: false,
@@ -222,14 +220,14 @@ export default function DependencyGraph({
       const onPath = selectedEdges.has(edge.id);
       return {
         id: edge.id,
-        type: "smoothstep",
+        type: "bezier",
         source: edge.source,
         target: edge.target,
         label: humanRelationshipLabel(edge.relationshipType).toUpperCase(),
         animated: false,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#36637C", width: 18, height: 18 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: routeColorForRelationship(edge.relationshipType), width: 18, height: 18 },
         style: {
-          stroke: "#36637C",
+          stroke: routeColorForRelationship(edge.relationshipType),
           strokeWidth: onPath ? 2.5 : 1.5,
           strokeDasharray: approved ? undefined : "5 4",
           opacity: hasSelection && !onPath ? 0.35 : approved ? 1 : 0.6,
@@ -238,11 +236,11 @@ export default function DependencyGraph({
         // Selection is shown through colour and opacity, never weight.
         labelStyle: {
           fontSize: 11,
-          fill: onPath ? "#36637C" : "#75777D",
+          fill: onPath ? "#087F83" : "#617C8D",
           fontWeight: 600,
           letterSpacing: "0.14em",
         },
-        labelBgStyle: { fill: "#F5FAFF" },
+        labelBgStyle: { fill: "#F1F7FB" },
         labelShowBg: true,
       };
     });
@@ -283,7 +281,6 @@ export default function DependencyGraph({
         minZoom={0.25}
         maxZoom={1.5}
       >
-        <Background color="rgba(54,99,124,0.08)" gap={24} size={1} />
         <Controls showInteractive={false} />
       </ReactFlow>}
     </div>

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-26T06:23:47Z",
+  "title": "Design System: CareSync",
+  "extensions": {
+    "colorMeta": {
+      "midnight-ink": { "role": "primary", "displayName": "Midnight Ink", "canonical": "#16233F", "tonalRamp": ["#080D18", "#101A30", "#16233F", "#263654", "#495875", "#79849A", "#B2B9C5", "#F7F5EE"] },
+      "scarlet-route": { "role": "primary", "displayName": "Scarlet Route", "canonical": "#BF4D52", "tonalRamp": ["#40191B", "#782F33", "#9F3F44", "#BF4D52", "#CF7074", "#DEA0A2", "#EAC5C6", "#F7E7E7"] },
+      "cobalt-route": { "role": "secondary", "displayName": "Cobalt Route", "canonical": "#356DB2", "tonalRamp": ["#102341", "#1E416C", "#2A5790", "#356DB2", "#638CC0", "#91ACD0", "#BDCEE2", "#EAF0F7"] },
+      "amber-route": { "role": "secondary", "displayName": "Amber Route", "canonical": "#B78118", "tonalRamp": ["#3B2908", "#6A4A0D", "#906615", "#B78118", "#C89D4C", "#D8B77C", "#E8D4AE", "#F7F0E1"] },
+      "green-route": { "role": "tertiary", "displayName": "Green Route", "canonical": "#43805A", "tonalRamp": ["#172D20", "#294D36", "#376947", "#43805A", "#6C9A7C", "#94B49E", "#BED1C3", "#E7F0E9"] },
+      "porcelain": { "role": "neutral", "displayName": "Porcelain", "canonical": "#FFFFFF", "tonalRamp": ["#222222", "#484848", "#707070", "#999999", "#B8B8B8", "#D0D0D0", "#E8E8E8", "#FFFFFF"] },
+      "warm-ground": { "role": "neutral", "displayName": "Warm Ground", "canonical": "#F7F5EE", "tonalRamp": ["#25241F", "#49473F", "#6D6A60", "#918E83", "#B3B0A6", "#CECBC2", "#E5E2D9", "#F7F5EE"] },
+      "muted-text": { "role": "neutral", "displayName": "Muted Text", "canonical": "#647084", "tonalRamp": ["#20242B", "#343B48", "#4A5566", "#647084", "#8290A3", "#A3ADBB", "#C8CED7", "#EEF0F3"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "System Humanist Sans", "purpose": "Page titles and major headings; dependable across hospital workstations." },
+      "technical": { "displayName": "System Monospace", "purpose": "Stable clause keys, identifiers, timestamps, and measured values." }
+    },
+    "shadows": [
+      { "name": "panel-rest", "value": "0 2px 5px rgba(22,35,63,0.08)", "purpose": "Small offset for standard interactive panels." },
+      { "name": "panel-data", "value": "0 8px 22px rgba(22,35,63,0.12)", "purpose": "Separate a major data table from the warm workspace." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "160ms ease", "purpose": "Color and boundary changes on hover and focus; disabled for reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Single primary action for a visual region.",
+      "html": "<button class=\"ds-button\">NEW POLICY</button>",
+      "css": ".ds-button { background: #16233F; color: #FFFFFF; height: 44px; padding: 0 28px; border: 0; border-radius: 4px; font: 700 11px/1.45 ui-sans-serif, system-ui, sans-serif; letter-spacing: .11em; text-transform: uppercase; transition: background-color 160ms ease; } .ds-button:hover { background: #BF4D52; } .ds-button:focus-visible { outline: 2px solid #BF4D52; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "White field with a clear focus state.",
+      "html": "<label class=\"ds-field-label\">Policy title<input class=\"ds-field\" /></label>",
+      "css": ".ds-field-label { display: grid; gap: 8px; color: #647084; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; } .ds-field { height: 44px; padding: 0 12px; border: 1px solid rgba(22,35,63,.16); border-radius: 3px; background: #FFFFFF; color: #16233F; font: 400 14px/1.6 ui-sans-serif, system-ui, sans-serif; } .ds-field:focus-visible { outline: 2px solid #BF4D52; outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation Rail",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Persistent midnight-blue app navigation with an explicit current location.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\">Dashboard</a></nav>",
+      "css": ".ds-nav { width: 248px; min-height: 100vh; padding: 24px; background: #16233F; } .ds-nav a { display: block; padding: 10px 12px; border-radius: 4px; color: rgba(255,255,255,.78); font: 700 11px/1.45 ui-sans-serif, system-ui, sans-serif; letter-spacing: .11em; text-decoration: none; text-transform: uppercase; } .ds-nav a[aria-current=page] { background: rgba(255,255,255,.12); color: #FFFFFF; box-shadow: inset 3px 0 #BF4D52; } .ds-nav a:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Marker",
+      "kind": "chip",
+      "refersTo": "status-marker",
+      "description": "A text-bearing state paired with a relationship-color station marker.",
+      "html": "<span class=\"ds-status\"><i aria-hidden=\"true\"></i> ACTIVE</span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid rgba(22,35,63,.16); border-radius: 4px; background: #FFFFFF; color: #16233F; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; } .ds-status i { width: 9px; height: 9px; border: 2px solid #43805A; border-radius: 50%; }"
+    },
+    {
+      "name": "Dependency Route",
+      "kind": "custom",
+      "refersTo": "dependency-route",
+      "description": "Right-angle path with labeled relationships and an accessible text equivalent.",
+      "html": "<div class=\"ds-route\"><i></i><b>GOVERNS</b><i></i><span>Security desk procedure</span></div>",
+      "css": ".ds-route { display: flex; align-items: center; gap: 10px; color: #16233F; font: 600 13px/1.5 ui-sans-serif, system-ui, sans-serif; } .ds-route i { width: 12px; height: 12px; flex: none; border: 2px solid #BF4D52; border-radius: 50%; background: #FFFFFF; } .ds-route b { color: #BF4D52; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; } .ds-route span { border-bottom: 2px solid #BF4D52; padding-bottom: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Policy Transit Map",
+    "overview": "CareSync borrows the disciplined linework of metropolitan wayfinding to make dependency paths legible. The product remains a familiar web application with explicit human review actions. Route notation supports the task; it never replaces navigation, controls, tables, or accessible text.",
+    "keyCharacteristics": ["Midnight-blue navigation and warm porcelain workspace.", "Aligned policy status tables.", "Right-angle relationship routes with labels and text equivalents."],
+    "rules": [
+      { "name": "The Named Route Rule", "body": "Color never carries relationship meaning alone. Every route has a text label and accessible text equivalent.", "section": "colors" }
+    ],
+    "dos": ["Do make policy names, active versions, and draft states the first dashboard read.", "Do pair every relationship route with a visible label and text equivalent.", "Do keep navigation and controls familiar to web users."],
+    "donts": ["Don't imply geographic distance or live transit service; the route is a dependency metaphor only.", "Don't rely on color alone to communicate status or relationship.", "Don't use decorative route graphics on pages without route data."]
+  }
+}

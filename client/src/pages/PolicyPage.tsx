@@ -380,7 +380,7 @@ export default function PolicyPage() {
           </section>
         )}
 
-        {actionError && <div role="alert" className="mt-4 rounded-card border border-border-strong border-l-2 border-l-ink bg-surface-white p-4"><p className="type-label-sm">Action could not be completed</p><p className="type-body-md mt-1 text-text-secondary">{actionError}</p></div>}
+        {actionError && <div role="alert" className="mt-4 rounded-card border border-border-strong bg-surface-white p-4"><div className="flex items-center gap-2"><span aria-hidden="true" className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-ink text-xs font-bold">!</span><p className="type-label-sm">Action could not be completed</p></div><p className="type-body-md mt-1 text-text-secondary">{actionError}</p></div>}
 
         {loadError && (
           <div
