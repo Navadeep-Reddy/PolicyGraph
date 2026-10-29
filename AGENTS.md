@@ -63,7 +63,7 @@ Progress lives in `BUILD_PLAN.md` as checkboxes. Nothing else tracks it.
 - Impact calculation happens on the backend, never in the frontend.
 - Human review determines whether an item is truly affected.
 - Clause dependencies reference the clause's **stable key within the policy**, never a clause row id.
-- AI is used for **exactly two tasks**: clause extraction and dependency suggestion. AI-suggested dependencies are saved as `PROPOSED`. Only human action makes one `APPROVED`.
+- AI is used for clause extraction, dependency suggestion, and narrowly scoped Qwen transcription of OCR-needed pages via a local OpenAI-compatible vision server, configured only through `.env`. AI-suggested dependencies are saved as `PROPOSED`. Only human action makes one `APPROVED`.
 - Change detection, traversal, reasons, and persistence are deterministic. No AI.
 - There is no AI fallback and no hardcoded AI response.
 - The app starts empty. Never add seed data, hardcoded policies, hardcoded dependencies, or hardcoded impact results.
@@ -79,7 +79,7 @@ Do not introduce:
 - authentication
 - Neo4j, Redis, queues, microservices, vector databases
 - AI-based change detection or traversal
-- OCR or PDF/DOCX extraction
+- OCR/PDF extraction is allowed only for imported-PDF text extraction and narrowly scoped Qwen transcription of OCR-needed pages; this is the third AI use. DOCX extraction remains prohibited.
 - report export, notifications, approval workflows
 
 unless the user explicitly changes the scope.

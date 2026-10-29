@@ -69,6 +69,7 @@ The training material must appear as an **indirect impact** with a complete path
 - Prisma
 - Hosted Supabase PostgreSQL (free tier). No Docker, no local database.
 - NVIDIA Nemotron through an OpenAI-compatible API (`openai` npm package)
+- PDF text extraction and OCR-candidate page transcription through a local OpenAI-compatible Qwen vision server such as Ollama (`openai` npm package)
 
 There is no authentication.
 
@@ -116,7 +117,13 @@ DIRECT_URL=
 NVIDIA_API_KEY=
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_MODEL=nvidia/nemotron-3.5-super-vl-120b-a12b
+# Optional; required only when imported PDF pages need OCR. Ollama example:
+QWEN_OCR_API_KEY=local
+QWEN_OCR_BASE_URL=http://localhost:11434/v1
+QWEN_OCR_MODEL=qwen3-vl:8b
 ```
+
+Install and run a vision-capable Qwen model in Ollama before importing scanned PDFs. The `QWEN_OCR_MODEL` name/tag must exactly match a model installed locally; configure the API key, base URL, and model only through these `.env` variables.
 
 Prisma client generation is required on a clean clone; the generated client is not committed. `prisma migrate deploy` applies the checked-in migrations without creating a shadow database. Use `npm run db:migrate` when developing a new schema migration.
 
@@ -173,7 +180,7 @@ CareSync does **not** include:
 - patient records, clinical diagnosis, or treatment recommendations
 - login or roles
 - integration with hospital systems
-- OCR or PDF/DOCX extraction
+- DOCX extraction (PDF import and page transcription OCR are supported)
 - email or notifications
 - approval workflows
 - report export

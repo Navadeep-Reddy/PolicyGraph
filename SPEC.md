@@ -10,10 +10,11 @@ Every result must explain **why it appeared** by showing the dependency path fro
 
 ## 2. AI usage
 
-AI (NVIDIA Nemotron, OpenAI-compatible API, configured only via `.env`) is used for **two tasks only**:
+AI is used only for clause extraction, dependency suggestion, and narrowly scoped transcription of OCR-needed PDF pages. NVIDIA Nemotron (OpenAI-compatible API) handles the first two; a local OpenAI-compatible Qwen vision server, preferably Ollama, handles page transcription through the existing `openai` package. Configure only through `.env`: `QWEN_OCR_API_KEY`, `QWEN_OCR_BASE_URL`, and `QWEN_OCR_MODEL` (for example, `local`, `http://localhost:11434/v1`, and `qwen3-vl:8b`). The model must be vision-capable, and its name/tag must match a model installed locally. No real DashScope key is required.
 
 1. **Clause extraction.** Policy text → structured clauses.
 2. **Dependency suggestion.** Clauses + operational items → proposed dependencies.
+3. **PDF page transcription.** Rendered OCR-candidate pages → literal transcription only; no summary or interpretation.
 
 AI output is a suggestion. Humans review and edit it. Everything else is deterministic: change detection, traversal, and persistence. There is no AI fallback. If the AI call fails, the API returns an error and the UI shows it with a retry.
 
@@ -287,7 +288,7 @@ Handle:
 
 - patient records, clinical content
 - authentication and roles
-- OCR, PDF/DOCX extraction
+- DOCX extraction
 - hospital-system integration
 - notifications, email
 - approval workflows

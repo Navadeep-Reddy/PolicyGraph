@@ -24,11 +24,11 @@ Users enter policy text, review extracted clauses, maintain operational items an
 
 ## Capabilities and Constraints
 
-- AI is used only to propose policy clauses and dependencies. People review and edit clauses and decide whether suggested dependencies are accepted.
+- AI proposes policy clauses and dependencies and performs literal transcription only for OCR-needed pages of imported PDFs. People review and edit clauses and decide whether suggested dependencies are accepted.
 - Change detection, impact traversal, explanations, and persistence are deterministic.
 - Impact analysis follows approved dependencies and provides a complete path for each result.
 - The product handles hospital operations and policy only. It does not handle patient data, diagnosis, or treatment.
-- There is no authentication. Hospital-system integrations, OCR, document extraction, notifications, and report export are out of scope.
+- There is no authentication. Hospital-system integrations, OCR beyond PDF page transcription, DOCX extraction, notifications, and report export are out of scope.
 - The client is React, TypeScript, Vite, and Tailwind CSS. The server is NestJS, TypeScript, and Prisma, backed by hosted Supabase PostgreSQL.
 
 ## Brand Commitments

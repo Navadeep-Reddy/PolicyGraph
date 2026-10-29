@@ -168,6 +168,13 @@ GET /health
 ### Policies and versions
 
 ```http
+POST /policies/import
+Content-Type: multipart/form-data (file: required PDF, title: required nonblank, description?: string)
+→ 201 { "policy": PolicyDetail, "draft": VersionDetail }
+```
+Imports PDFs up to 15 MiB and 100 pages with embedded-text extraction and page transcription OCR where needed. The extracted transcription follows the same clause-extraction path as `POST /policies`. Invalid, encrypted, malformed, or textless PDFs return `VALIDATION_ERROR` (400); OCR failures return `AI_FAILED` (502). Multipart size-limit errors also use the standard `{error:{code,message}}` shape.
+
+```http
 GET /policies
 → 200 PolicySummary[]
 ```

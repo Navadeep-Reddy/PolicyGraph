@@ -48,6 +48,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return await response.json() as T;
 }
 
+async function multipartRequest<T>(path: string, init: RequestInit): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "application/json");
+  const response = mocksEnabled
+    ? await (await import("./mocks.ts")).mockRequest(path, { ...init, headers })
+    : await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`;
+    let code: ApiError["code"] = "REQUEST_FAILED";
+    const body: unknown = await response.json().catch(() => null);
+    if (isRecord(body) && isRecord(body.error)) {
+      if (typeof body.error.message === "string") message = body.error.message;
+      const knownCodes: string[] = ["VALIDATION_ERROR", "NOT_FOUND", "CONFLICT", "NO_BASE_VERSION", "AI_FAILED"];
+      if (typeof body.error.code === "string" && knownCodes.includes(body.error.code)) code = body.error.code as ApiErrorCode;
+    }
+    throw new ApiError(response.status, message, code);
+  }
+  return await response.json() as T;
+}
+
 const id = encodeURIComponent;
 const json = (method: string, body?: unknown): RequestInit => ({
   method, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -56,6 +76,13 @@ const json = (method: string, body?: unknown): RequestInit => ({
 export const getHealth = () => request<{ status: "ok" }>("/health");
 export const listPolicies = () => request<PolicySummary[]>("/policies");
 export const createPolicy = (input: CreatePolicyInput) => request<CreatePolicyResponse>("/policies", json("POST", input));
+export const createPolicyFromPdf = (input: { file: File; title: string; description?: string }) => {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("title", input.title);
+  if (input.description !== undefined) form.append("description", input.description);
+  return multipartRequest<CreatePolicyResponse>("/policies/import", { method: "POST", body: form });
+};
 export const getPolicy = (policyId: string) => request<PolicyDetail>(`/policies/${id(policyId)}`);
 export const getVersion = (versionId: string) => request<VersionDetail>(`/versions/${id(versionId)}`);
 export const createRevision = (policyId: string, input: { text?: string } = {}) =>

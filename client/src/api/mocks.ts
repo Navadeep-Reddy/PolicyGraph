@@ -70,6 +70,7 @@ export function createMockRequest(snapshots: MockSnapshots = {}) {
 
     if (resource === "policies") {
       if (!resourceId && method === "GET") return response(policies);
+      if (!resourceId && method === "POST" && url.pathname === "/policies/import") return failure("AI_FAILED", "PDF clause extraction requires the real API. Development mocks do not generate AI output.", 502);
       if (!resourceId && method === "POST") {
         if (typeof input.title !== "string" || !input.title.trim() || typeof input.text !== "string" || !input.text.trim()) return failure("VALIDATION_ERROR", "Provide a policy title and text.", 400);
         return failure("AI_FAILED", "Clause extraction requires the real API. Development mocks do not generate AI output.", 502);

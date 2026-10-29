@@ -22,7 +22,13 @@ export class ContractExceptionFilter implements ExceptionFilter {
     let code: ContractErrorCode | string = 'INTERNAL_SERVER_ERROR';
     let message = 'An unexpected error occurred';
 
-    if (!(exception instanceof HttpException)) {
+    if (exception instanceof Error && 'code' in exception && typeof exception.code === 'string' && exception.code.startsWith('LIMIT_')) {
+      status = HttpStatus.BAD_REQUEST;
+      code = 'VALIDATION_ERROR';
+      message = exception.code === 'LIMIT_FILE_SIZE'
+        ? 'PDF must be no larger than 15 MiB'
+        : exception.message;
+    } else if (!(exception instanceof HttpException)) {
       this.logUnknownError(exception);
     }
 
