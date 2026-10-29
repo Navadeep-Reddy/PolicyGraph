@@ -1,8 +1,42 @@
 import 'dotenv/config';
+import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
 import { hashClauseText } from '../src/policies/change-classifier.js';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pdfDemo = process.argv.includes('--pdf');
+
+interface PdfDemoArtifact {
+  id: string;
+  name: string;
+  type: string;
+  department: string;
+  description: string;
+  content: string;
+}
+
+async function loadPdfDemoArtifacts(): Promise<PdfDemoArtifact[]> {
+  const source: unknown = JSON.parse(await readFile(new URL('../../samples/policy-pdfs/operational-items.json', import.meta.url), 'utf8'));
+  if (typeof source !== 'object' || source === null || Array.isArray(source)) throw new Error('Invalid PDF-demo operational items');
+  const types = new Set(['FORM', 'PROCEDURE', 'CHECKLIST', 'TRAINING_MATERIAL', 'DEPARTMENT_INSTRUCTION', 'INFORMATION_SHEET']);
+  const items: PdfDemoArtifact[] = [];
+  const names = new Set<string>();
+  for (const group of Object.values(source)) {
+    if (!Array.isArray(group)) throw new Error('Invalid PDF-demo operational item group');
+    for (const entry of group as unknown[]) {
+      if (typeof entry !== 'object' || entry === null) throw new Error('Invalid PDF-demo operational item');
+      const item = entry as Record<string, unknown>;
+      const { name, type, department, description, content } = item;
+      if (typeof name !== 'string' || !name.trim() || typeof type !== 'string' || !types.has(type)
+        || typeof department !== 'string' || !department.trim() || typeof description !== 'string'
+        || typeof content !== 'string' || !content.trim() || names.has(name)) throw new Error('Invalid or duplicate PDF-demo operational item');
+      names.add(name);
+      items.push({ id: `caresync-pdf-demo-item-${items.length + 1}`, name, type, department, description, content });
+    }
+  }
+  if (items.length !== 12) throw new Error('PDF demo requires all 12 operational items');
+  return items;
+}
 const demo = {
   policyId: 'caresync-demo-hospital-visitor-policy',
   versions: ['caresync-demo-visitor-policy-v1', 'caresync-demo-visitor-policy-v2'],
@@ -20,6 +54,7 @@ const clauses = [
 ];
 
 async function main(): Promise<void> {
+  const pdfArtifacts = pdfDemo ? await loadPdfDemoArtifacts() : [];
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -32,6 +67,13 @@ async function main(): Promise<void> {
     await client.query('DELETE FROM "PolicyVersion"');
     await client.query('DELETE FROM "Artifact"');
     await client.query('DELETE FROM "Policy"');
+
+    if (pdfDemo) {
+      for (const item of pdfArtifacts) await client.query('INSERT INTO "Artifact" (id, name, type, department, description, content) VALUES ($1, $2, $3, $4, $5, $6)', [item.id, item.name, item.type, item.department, item.description, item.content]);
+      await client.query('COMMIT');
+      console.log(JSON.stringify({ mode: 'pdf', policyCount: 0, artifactCount: pdfArtifacts.length, artifactIds: pdfArtifacts.map(({ id }) => id) }));
+      return;
+    }
 
     await client.query('INSERT INTO "Policy" (id, title, description, "createdAt", "updatedAt") VALUES ($1, $2, $3, now(), now())', [demo.policyId, 'Hospital Visitor Policy', 'Visitor access, registration, badges, and visiting-hours policy.']);
     const publishedAt = new Date('2026-10-01T12:00:00.000Z');

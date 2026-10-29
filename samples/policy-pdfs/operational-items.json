@@ -1,0 +1,90 @@
+{
+  "visitorAccess": [
+    {
+      "name": "Security Desk Visitor Procedure",
+      "type": "PROCEDURE",
+      "department": "Security",
+      "description": "Desk procedure implementing the Hospital Visitor Access Policy.",
+      "content": "Verify government-issued photo ID and record visitor name, destination, and arrival time before entry. Issue a visitor badge. Remind general visitors that they must leave inpatient wards by 8:00 p.m. unless the nurse in charge authorizes an exception. After general visiting hours, check the nurse-approved After-Hours Authorization Record before admission. The Visitor Access Training Module teaches this procedure and must reflect changes to its instructions."
+    },
+    {
+      "name": "Visitor Registration Form",
+      "type": "FORM",
+      "department": "Security",
+      "description": "Records the registration details required before visitor entry.",
+      "content": "Fields: visitor name; destination; arrival time; government-issued photo ID verified by Security; registering staff initials. Complete registration at the security desk before allowing the visitor beyond the desk."
+    },
+    {
+      "name": "Inpatient Ward Visitor Checklist",
+      "type": "CHECKLIST",
+      "department": "Nursing Operations",
+      "description": "Ward checks for visitor badges and operational visitor limits.",
+      "content": "Check that each general visitor wears the issued badge above the waist. Remind visitors to return badges on departure. If additional visitors would obstruct staff movement or routine ward operations, the nurse in charge limits each inpatient to no more than two general visitors at one time."
+    },
+    {
+      "name": "Visitor Information Sheet",
+      "type": "INFORMATION_SHEET",
+      "department": "Patient Experience",
+      "description": "Public-facing summary of visiting hours and badges.",
+      "content": "General visitors must leave inpatient wards by 8:00 p.m. daily unless the nurse in charge authorizes an exception. Wear your visitor badge above the waist while inside the hospital and return it when leaving."
+    },
+    {
+      "name": "Visitor Access Training Module",
+      "type": "TRAINING_MATERIAL",
+      "department": "Learning and Development",
+      "description": "Training derived from the Security Desk Visitor Procedure.",
+      "content": "Use the current Security Desk Visitor Procedure as the source for all desk-role demonstrations and practice scenarios. Teach registration, closing-time reminders, and after-hours authorization checks. When the procedure changes, revise the corresponding demonstration and assessment questions."
+    },
+    {
+      "name": "After-Hours Authorization Record",
+      "type": "FORM",
+      "department": "Nursing Operations",
+      "description": "Nurse-approved record checked by Security outside general visiting hours.",
+      "content": "Fields: authorized general visitor name; ward destination; nurse-in-charge approval; authorization date. Security admits general visitors outside general visiting hours only when their names appear on this approved record."
+    }
+  ],
+  "oxygenControl": [
+    {
+      "name": "Oxygen Stock Check Procedure",
+      "type": "PROCEDURE",
+      "department": "Facilities",
+      "description": "Shift-start inventory counting procedure for approved storage areas.",
+      "content": "At the start of every Facilities shift, the designated technician counts full and empty oxygen cylinders in each approved storage area. Enter the count in the Oxygen Inventory Log using the fields specified by the policy. If the total falls below the policy minimum, follow the Oxygen Shortage Reporting Checklist. Changes to these counting and recording steps require review of the Oxygen Inventory Log."
+    },
+    {
+      "name": "Oxygen Inventory Log",
+      "type": "FORM",
+      "department": "Facilities",
+      "description": "Record completed by the designated technician for every shift-start count.",
+      "content": "Fields: date; time; storage location; number of full cylinders; number of empty cylinders; technician initials. Complete one entry for every shift-start count using the Oxygen Stock Check Procedure."
+    },
+    {
+      "name": "Oxygen Shortage Reporting Checklist",
+      "type": "CHECKLIST",
+      "department": "Facilities",
+      "description": "Implements the minimum-stock trigger and notification deadline.",
+      "content": "After the count, check whether fewer than 12 full cylinders are available across approved storage areas. If so, notify the Facilities Duty Manager within 15 minutes of completing the count. Record count completion time, full-cylinder total, notification time, and recipient. These trigger and deadline instructions are reused by the Facilities Shift Handover Instruction and Supply Chain Escalation Record."
+    },
+    {
+      "name": "Facilities Shift Handover Instruction",
+      "type": "DEPARTMENT_INSTRUCTION",
+      "department": "Facilities",
+      "description": "Handover instructions derived from the shortage checklist.",
+      "content": "Carry unresolved shortage actions from the Oxygen Shortage Reporting Checklist into the shift handover. Include the applicable minimum-stock trigger, notification deadline, count completion time, notification time, current status, and responsible manager. Revise these handover instructions when the checklist trigger or deadline changes."
+    },
+    {
+      "name": "Medical Gas Storage Training",
+      "type": "TRAINING_MATERIAL",
+      "department": "Learning and Development",
+      "description": "Focused training on oxygen cylinder storage separation.",
+      "content": "Demonstrate keeping full and empty oxygen cylinders in separate labeled racks within each approved storage area. Assess recognition of the full and empty rack labels. This module does not teach shortage thresholds or notification deadlines."
+    },
+    {
+      "name": "Supply Chain Escalation Record",
+      "type": "FORM",
+      "department": "Supply Chain",
+      "description": "Records unresolved shortage escalation and its source notification.",
+      "content": "When a minimum stock notification remains unresolved for 30 minutes, the Facilities Duty Manager notifies the Supply Chain Supervisor and records the escalation. Fields: shortage threshold and initial notification deadline from the Oxygen Shortage Reporting Checklist; count completion time; initial notification time; escalation time; supervisor notified; resolution. Changes to the checklist threshold or initial deadline require review of the copied instructions on this form."
+    }
+  ]
+}

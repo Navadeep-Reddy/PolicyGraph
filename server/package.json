@@ -23,7 +23,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
-    "db:demo": "tsx prisma/demo.ts"
+    "db:demo": "tsx prisma/demo.ts",
+    "db:demo:pdf": "tsx prisma/demo.ts --pdf"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.13",
