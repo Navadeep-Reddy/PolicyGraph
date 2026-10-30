@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Security Desk Visitor Procedure",
+    "type": "PROCEDURE",
+    "department": "Security",
+    "description": "Implements the general visiting-hours cutoff of 8:00 p.m. and visitor photo-ID registration. This procedure is the source for the Visitor Access Training Module.",
+    "content": "Remind general visitors to leave inpatient wards by 8:00 p.m. unless the nurse in charge authorizes an exception. Before allowing a general visitor beyond the security desk, verify one government-issued photo ID and record the visitor's name, destination, and arrival time. Update these instructions when the visiting-hours or registration rule changes."
+  },
+  {
+    "name": "Visitor Information Sheet",
+    "type": "INFORMATION_SHEET",
+    "department": "Patient Experience",
+    "description": "Public information sheet reproducing the 8:00 p.m. general visiting-hours cutoff and visitor badge-wearing and return requirements.",
+    "content": "General visitors must leave inpatient wards by 8:00 p.m. daily, unless the nurse in charge authorizes an exception. General visitors must wear the issued visitor badge above the waist while inside the hospital and return it when leaving."
+  },
+  {
+    "name": "Visitor Access Training Module",
+    "type": "TRAINING_MATERIAL",
+    "department": "Learning and Development",
+    "description": "Training derived from the Security Desk Visitor Procedure. Its demonstrations and assessment questions require review when that procedure changes.",
+    "content": "Use the current Security Desk Visitor Procedure as the source for staff demonstrations of closing-time reminders and photo-ID registration. When the procedure changes, update the related role-play scenarios and assessment questions."
+  }
+]

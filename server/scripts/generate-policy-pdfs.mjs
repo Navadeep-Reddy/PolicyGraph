@@ -10,6 +10,18 @@ const sourceDirectory = resolve(sampleDirectory, 'source');
 
 const documents = [
   {
+    source: 'visitor-access-compact-v1.md',
+    output: 'visitor-access-compact-v1.pdf',
+    label: 'HVA-COMPACT | VERSION 1.0',
+    scanned: false,
+  },
+  {
+    source: 'visitor-access-compact-v2.md',
+    output: 'visitor-access-compact-v2.pdf',
+    label: 'HVA-COMPACT | VERSION 2.0',
+    scanned: false,
+  },
+  {
     source: 'hospital-visitor-access-v1.md',
     output: 'hospital-visitor-access-v1-digital.pdf',
     label: 'HVA-100 | VERSION 1.0',
@@ -180,5 +192,6 @@ async function buildDocument(document) {
 }
 
 await mkdir(sampleDirectory, { recursive: true });
-for (const document of documents) await buildDocument(document);
-console.log(`Generated ${documents.length} policy PDFs in ${sampleDirectory}`);
+const selected = process.argv.includes('--compact') ? documents.filter(document => document.source.startsWith('visitor-access-compact-')) : documents;
+for (const document of selected) await buildDocument(document);
+console.log(`Generated ${selected.length} policy PDFs in ${sampleDirectory}`);

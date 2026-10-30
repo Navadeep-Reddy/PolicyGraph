@@ -2,16 +2,20 @@
 
 These fictional policies test PDF text extraction, OCR transcription, AI clause selection, dependency suggestions, version comparison, and deterministic impact analysis. They contain no patient data.
 
+**For the smaller presentation demo, use [COMPACT_DEMO.md](COMPACT_DEMO.md): three clauses, three seeded operational items, and a visiting-hours change with direct and indirect impacts.**
+
 ## Files
 
 | File | Import behavior | Purpose |
 |---|---|---|
+| `visitor-access-compact-v1.pdf` | Embedded text; one page | Compact baseline with three clauses |
+| `visitor-access-compact-v2.pdf` | Embedded text; one page | Compact revision: 8 p.m. → 6 p.m. |
 | `hospital-visitor-access-v1-digital.pdf` | Embedded text; Qwen OCR should not be needed | Baseline visitor policy |
 | `hospital-visitor-access-v2-digital.pdf` | Embedded text | One-clause visitor-hours revision |
 | `oxygen-cylinder-control-v1-scanned.pdf` | Image-only pages; all pages should use Qwen OCR | Baseline Facilities policy |
 | `oxygen-cylinder-control-v2-scanned.pdf` | Image-only pages | One-clause stock-threshold revision |
 
-Editable source text is under `source/`. Regenerate all four files with:
+Editable source text is under `source/`. Regenerate all six files with:
 
 ```bash
 cd server
@@ -20,7 +24,7 @@ node scripts/generate-policy-pdfs.mjs
 
 ## What the AI should treat as clauses
 
-The expected result is five clauses per policy. Exact AI-generated keys, titles, and categories may vary, but the requirement sentences should be preserved rather than paraphrased.
+The original visitor and oxygen documents below each contain five expected clauses. The compact pair contains only three; see [COMPACT_DEMO.md](COMPACT_DEMO.md). Exact AI-generated keys, titles, and categories may vary, but the requirement sentences should be preserved rather than paraphrased.
 
 ### Visitor access
 
@@ -56,11 +60,11 @@ To prepare the database for the PDF presentation, run from `server/`:
 npm run db:demo:pdf
 ```
 
-This opt-in reset **deletes all CareSync application records** and loads exactly the 12 operational items below, including their descriptions and full content. It creates no policies, clauses, dependencies, or impact runs, so you can demonstrate real PDF extraction and AI dependency suggestions from the start. The reset and inserts run in one transaction. `npm run db:demo` still restores the original visitor-policy demo instead.
+This opt-in reset **deletes all CareSync application records** and loads exactly the three items from `compact-operational-items.json`: Security Desk Visitor Procedure, Visitor Information Sheet, and Visitor Access Training Module. It creates no policies, clauses, dependencies, or impact runs. Follow [COMPACT_DEMO.md](COMPACT_DEMO.md) for the matching three-clause PDFs and graph. The reset and inserts run in one transaction. `npm run db:demo` still restores the original visitor-policy demo instead.
 
 Create the items below, ask AI for suggestions, approve only correct suggestions, and add any missing links manually. The names and content deliberately share language with the policy so suggestions have enough evidence.
 
-`operational-items.json` contains complete, copy-ready fields for all 12 items and is the input for the opt-in PDF-demo reset. Each entry matches the body of `POST /items`; the outer `visitorAccess` and `oxygenControl` groups are just organizational labels, not API request bodies. You can also enter the fields manually in the Operational items screen.
+`operational-items.json` retains complete, copy-ready fields for the original 12 sample items if you want to prepare the larger scenarios manually. The current PDF-demo reset uses the separate three-entry `compact-operational-items.json` instead. Each item entry matches the body of `POST /items`; outer group labels in the original file are not API request bodies.
 
 The edges below define a controlled baseline for the exact expected results. AI may suggest additional valid links. For an exact three-result impact test, approve only the baseline links and leave additional suggestions proposed or rejected. Match clause sources to their actual extracted stable keys; the display titles below are descriptive labels, not predetermined AI keys.
 
@@ -146,7 +150,7 @@ Only `APPROVED` dependencies should appear in either impact report. Leave one pl
 1. Upload a v1 PDF from **New policy**, using the matching policy title. Test the digital and scanned policies separately.
 2. Check the draft against the five expected requirements. Do not assume successful import means accurate extraction.
 3. Count true requirements extracted and non-requirements incorrectly extracted. Splitting one requirement into several entries should not count as multiple true positives. Check exact numbers, times, conditions, responsible roles, and exceptions.
-4. Publish the reviewed baseline, create its six items if you did not use the PDF-demo reset, and review dependency suggestions. Save the baseline links above as approved, adding missing links manually.
+4. For these original five-clause scenarios, create the six matching items manually before reviewing dependency suggestions; the current PDF-demo reset supplies only the three compact-demo items. Save the baseline links above as approved, adding missing links manually. For the compact workflow, follow COMPACT_DEMO.md instead.
 5. Create a revision by copying the active version. Edit only the specified clause, keeping its existing stable key. Compare before publishing the revision and run impact analysis while it is a draft.
 6. Confirm one modified clause, four unchanged clauses, the three expected impact results, distances, and full paths. Items with no approved path from the changed clause must not appear.
 7. Confirm or resolve one result, refresh, and verify the saved status.

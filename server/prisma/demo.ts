@@ -16,25 +16,22 @@ interface PdfDemoArtifact {
 }
 
 async function loadPdfDemoArtifacts(): Promise<PdfDemoArtifact[]> {
-  const source: unknown = JSON.parse(await readFile(new URL('../../samples/policy-pdfs/operational-items.json', import.meta.url), 'utf8'));
-  if (typeof source !== 'object' || source === null || Array.isArray(source)) throw new Error('Invalid PDF-demo operational items');
+  const source: unknown = JSON.parse(await readFile(new URL('../../samples/policy-pdfs/compact-operational-items.json', import.meta.url), 'utf8'));
+  if (!Array.isArray(source)) throw new Error('Invalid PDF-demo operational items');
   const types = new Set(['FORM', 'PROCEDURE', 'CHECKLIST', 'TRAINING_MATERIAL', 'DEPARTMENT_INSTRUCTION', 'INFORMATION_SHEET']);
   const items: PdfDemoArtifact[] = [];
   const names = new Set<string>();
-  for (const group of Object.values(source)) {
-    if (!Array.isArray(group)) throw new Error('Invalid PDF-demo operational item group');
-    for (const entry of group as unknown[]) {
-      if (typeof entry !== 'object' || entry === null) throw new Error('Invalid PDF-demo operational item');
-      const item = entry as Record<string, unknown>;
-      const { name, type, department, description, content } = item;
-      if (typeof name !== 'string' || !name.trim() || typeof type !== 'string' || !types.has(type)
-        || typeof department !== 'string' || !department.trim() || typeof description !== 'string'
-        || typeof content !== 'string' || !content.trim() || names.has(name)) throw new Error('Invalid or duplicate PDF-demo operational item');
-      names.add(name);
-      items.push({ id: `caresync-pdf-demo-item-${items.length + 1}`, name, type, department, description, content });
-    }
+  for (const entry of source as unknown[]) {
+    if (typeof entry !== 'object' || entry === null) throw new Error('Invalid PDF-demo operational item');
+    const item = entry as Record<string, unknown>;
+    const { name, type, department, description, content } = item;
+    if (typeof name !== 'string' || !name.trim() || typeof type !== 'string' || !types.has(type)
+      || typeof department !== 'string' || !department.trim() || typeof description !== 'string'
+      || typeof content !== 'string' || !content.trim() || names.has(name)) throw new Error('Invalid or duplicate PDF-demo operational item');
+    names.add(name);
+    items.push({ id: `caresync-pdf-demo-item-${items.length + 1}`, name, type, department, description, content });
   }
-  if (items.length !== 12) throw new Error('PDF demo requires all 12 operational items');
+  if (items.length !== 3) throw new Error('PDF demo requires exactly 3 visitor-access operational items');
   return items;
 }
 const demo = {
