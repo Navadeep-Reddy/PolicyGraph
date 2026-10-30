@@ -92,23 +92,35 @@ describe('draft clause mutations', () => {
 describe('PoliciesService contract reads', () => {
   const date = new Date('2026-01-01T00:00:00.000Z');
   it('maps empty policy list', async () => {
-    const service = new PoliciesService({ policy: { findMany: async () => [] } } as never);
+    const service = new PoliciesService({ $queryRaw: async () => [] } as never);
     await expect(service.listPolicies()).resolves.toEqual([]);
   });
 
   it('maps summary fields and latest approved policy data', async () => {
     const policy = { id: 'p', title: 'Policy', description: null, updatedAt: date,
-      versions: [{ id: 'v1', versionNumber: 1, status: 'ACTIVE' }, { id: 'v2', versionNumber: 2, status: 'DRAFT' }] };
+      activeVersionNumber: 1, activeVersionId: 'v1', draftVersionId: 'v2', approvedDependencyCount: 3, latestImpactRunId: 'run' };
+    let calls = 0;
     const service = new PoliciesService({
-      policy: { findMany: async () => [policy] },
-      dependencyEdge: { count: async () => 3 },
-      impactRun: { findFirst: async () => ({ id: 'run' }) },
+      $queryRaw: async () => { calls++; return [policy]; },
     } as never);
     await expect(service.listPolicies()).resolves.toEqual([{
       id: 'p', title: 'Policy', description: null, activeVersionNumber: 1,
       draftVersionId: 'v2', activeVersionId: 'v1', approvedDependencyCount: 3,
       latestImpactRunId: 'run', updatedAt: date.toISOString(),
     }]);
+    expect(calls).toBe(1);
+  });
+
+  it('preserves nullable version and impact fields for unpublished policies in one round trip', async () => {
+    let calls = 0;
+    const policies = Array.from({ length: 20 }, (_, index) => ({
+      id: `p-${index}`, title: `Policy ${index}`, description: null, updatedAt: date,
+      activeVersionNumber: null, activeVersionId: null, draftVersionId: `draft-${index}`,
+      approvedDependencyCount: 0, latestImpactRunId: null,
+    }));
+    const service = new PoliciesService({ $queryRaw: async () => { calls++; return policies; } } as never);
+    expect(await service.listPolicies()).toEqual(policies.map((policy) => ({ ...policy, updatedAt: date.toISOString() })));
+    expect(calls).toBe(1);
   });
 
   it('returns newest-first policy versions without internal fields', async () => {

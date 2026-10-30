@@ -7,10 +7,12 @@ import ItemsPage from "./pages/ItemsPage.tsx";
 import DependenciesPage from "./pages/DependenciesPage.tsx";
 import ComparePage from "./pages/ComparePage.tsx";
 import RoutePlaceholderPage from "./pages/RoutePlaceholderPage.tsx";
+import RequestActivity from "./components/RequestActivity.tsx";
 
 export default function App() {
   return (
     <BrowserRouter>
+      <RequestActivity />
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/policies/new" element={<NewPolicyPage />} />

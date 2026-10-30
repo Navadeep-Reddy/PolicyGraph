@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   Controls,
@@ -73,6 +73,7 @@ function GraphNode({ data }: NodeProps<Node<GraphNodeData>>) {
 }
 
 const nodeTypes = { policyNode: GraphNode };
+const emptySelection: string[] = [];
 
 interface DependencyGraphProps {
   nodes: GraphNodeType[];
@@ -133,11 +134,11 @@ function layoutColumns(nodes: GraphNodeType[], edges: GraphEdge[]): Map<string, 
   return distance;
 }
 
-export default function DependencyGraph({
+export default memo(function DependencyGraph({
   nodes,
   edges,
-  selectedNodeIds = [],
-  selectedEdgeIds = [],
+  selectedNodeIds = emptySelection,
+  selectedEdgeIds = emptySelection,
   affectedNodeId = null,
   heightClassName = "h-[420px]",
   interactiveClauseFocus = false,
@@ -295,4 +296,4 @@ export default function DependencyGraph({
     {hideOrphanClauses && <div className="sr-only">{nodes.filter(node => node.type === "CLAUSE" && !display.nodes.some(shown => shown.id === node.id)).map(node => node.label).join(", ")}</div>}
     </>
   );
-}
+});

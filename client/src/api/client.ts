@@ -5,6 +5,7 @@ import type {
   ImpactRunSummary, Item, PolicyDetail, PolicyGraph, PolicySummary,
   ReviewStatus, UpdateClauseInput, UpdateDependencyInput, VersionDetail,
 } from "../types/index.ts";
+import { requestMessage, trackRequest } from "./activity.ts";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 export const mocksEnabled = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "true";
@@ -25,7 +26,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isRead = !init?.method || init.method === "GET";
+  const pending = isRead ? inFlightReads.get(path) : undefined;
+  if (pending) return pending as Promise<T>;
+  const operation = trackRequest(requestMessage(path, init?.method), () => sendRequest<T>(path, init));
+  if (!isRead) return operation;
+  // Coalesce concurrent reads (including StrictMode effects), without caching
+  // completed responses that could hide later edits.
+  const result = operation.finally(() => { inFlightReads.delete(path); });
+  inFlightReads.set(path, result);
+  return result;
+}
+
+async function sendRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");
   if (init?.body !== undefined) headers.set("Content-Type", "application/json");
@@ -48,7 +64,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return await response.json() as T;
 }
 
-async function multipartRequest<T>(path: string, init: RequestInit): Promise<T> {
+function multipartRequest<T>(path: string, init: RequestInit): Promise<T> {
+  return trackRequest(requestMessage(path, init.method), () => sendMultipartRequest<T>(path, init));
+}
+
+async function sendMultipartRequest<T>(path: string, init: RequestInit): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
   const response = mocksEnabled

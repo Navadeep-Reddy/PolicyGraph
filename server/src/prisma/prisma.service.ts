@@ -15,6 +15,11 @@ export class PrismaService
     super({
       adapter: new PrismaPg({
         connectionString: process.env['DATABASE_URL'],
+        // Keep one established hosted connection between user actions. The
+        // driver's default idle eviction otherwise repeats the TLS handshake.
+        min: 1,
+        idleTimeoutMillis: 60_000,
+        keepAlive: true,
       }),
     });
   }

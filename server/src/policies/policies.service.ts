@@ -126,42 +126,36 @@ export class PoliciesService {
     });
   }
 
-  // Dashboard data: one row per policy with version summaries, the approved
-  // dependency count for the policy, and the latest impact run
-  // (if any) across all versions of the policy.
+  // Keep dashboard aggregation in one database round trip. Per-policy queries
+  // multiply hosted-database latency even for a small register.
   async listPolicies(): Promise<PolicySummaryDto[]> {
-    const policies = await this.prisma.policy.findMany({
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        versions: { select: { id: true, versionNumber: true, status: true } },
-      },
-    });
-    return Promise.all(
-      policies.map(async (policy) => {
-        const activeVersion = policy.versions.find((version) => version.status === 'ACTIVE') ?? null;
-        const draftVersion = policy.versions.find((version) => version.status === 'DRAFT') ?? null;
-        const [approvedDependencyCount, latestImpactRun] = await Promise.all([
-          this.prisma.dependencyEdge.count({
-            where: { policyId: policy.id, status: 'APPROVED' },
-          }),
-          this.prisma.impactRun.findFirst({
-            where: { policyVersion: { policyId: policy.id } },
-            orderBy: { createdAt: 'desc' },
-          }),
-        ]);
-        return {
-          id: policy.id,
-          title: policy.title,
-          description: policy.description,
-          activeVersionNumber: activeVersion?.versionNumber ?? null,
-          draftVersionId: draftVersion?.id ?? null,
-          activeVersionId: activeVersion?.id ?? null,
-          approvedDependencyCount,
-          latestImpactRunId: latestImpactRun?.id ?? null,
-          updatedAt: policy.updatedAt.toISOString(),
-        };
-      }),
-    );
+    const policies = await this.prisma.$queryRaw<(Omit<PolicySummaryDto, 'updatedAt'> & { updatedAt: Date })[]>`
+      SELECT p.id, p.title, p.description, p."updatedAt",
+        active."versionNumber" AS "activeVersionNumber", active.id AS "activeVersionId",
+        draft.id AS "draftVersionId",
+        (SELECT COUNT(*)::int FROM "DependencyEdge" e
+          WHERE e."policyId" = p.id AND e.status = 'APPROVED') AS "approvedDependencyCount",
+        latest.id AS "latestImpactRunId"
+      FROM "Policy" p
+      LEFT JOIN LATERAL (
+        SELECT id, "versionNumber" FROM "PolicyVersion"
+        WHERE "policyId" = p.id AND status = 'ACTIVE'
+        ORDER BY "versionNumber" DESC LIMIT 1
+      ) active ON true
+      LEFT JOIN LATERAL (
+        SELECT id FROM "PolicyVersion"
+        WHERE "policyId" = p.id AND status = 'DRAFT'
+        ORDER BY "versionNumber" DESC LIMIT 1
+      ) draft ON true
+      LEFT JOIN LATERAL (
+        SELECT r.id FROM "ImpactRun" r
+        JOIN "PolicyVersion" v ON v.id = r."policyVersionId"
+        WHERE v."policyId" = p.id
+        ORDER BY r."createdAt" DESC, r.id DESC LIMIT 1
+      ) latest ON true
+      ORDER BY p."updatedAt" DESC, p.id ASC
+    `;
+    return policies.map((policy) => ({ ...policy, updatedAt: policy.updatedAt.toISOString() }));
   }
 
   // Policy comparison data: active and draft versions with their clauses.
